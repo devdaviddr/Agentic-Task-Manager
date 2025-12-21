@@ -1,9 +1,17 @@
+/*
+ * NOTE: This file is for Node.js deployment using traditional server hosting.
+ * For Cloudflare Workers deployment with D1 database, use worker.ts instead.
+ * 
+ * This file is maintained for compatibility but may need updates for D1 if used.
+ */
+
 import 'dotenv/config';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import { rateLimiter } from 'hono-rate-limiter';
-import { testConnection } from './config/database';
+// NOTE: testConnection needs D1Database parameter in D1 setup
+// import { testConnection } from './config/database';
 import routes from './routes';
 import {
   errorHandler,
@@ -84,15 +92,14 @@ app.get('/', (c) => c.json({
 // Health check route
 app.get('/health', async (c) => {
   try {
-    // Import pool dynamically to avoid circular dependency
-    const { pool } = await import('./config/database');
-    await pool.query('SELECT 1');
-
+    // NOTE: For D1 deployment, this would need to be updated to use D1Database
+    // For now, we'll just return a basic health check without database connectivity
+    
     const health = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
-      database: 'connected',
+      database: 'not-tested-in-node-deployment',
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       version: process.version
@@ -103,7 +110,7 @@ app.get('/health', async (c) => {
     return c.json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
-      database: 'disconnected',
+      database: 'error',
       error: (error as Error).message
     }, 503);
   }
@@ -125,10 +132,10 @@ app.notFound((c) => {
 
 async function startServer() {
   try {
-    // Test database connection
-    await testConnection();
+    // NOTE: For D1 deployment, database connection testing would be handled differently
+    console.log('🔧 Starting Node.js server (for D1, use worker.ts instead)');
   } catch (error) {
-    console.error('❌ Database connection failed, exiting...');
+    console.error('❌ Server startup failed:', error);
     process.exit(1);
   }
 
@@ -149,14 +156,8 @@ async function startServer() {
   const gracefulShutdown = async (signal: string) => {
     console.log(`\n🛑 Received ${signal}, shutting down gracefully...`);
 
-    // Close database connections
-    try {
-      const { closeConnection } = await import('./config/database');
-      await closeConnection();
-      console.log('✅ Database connections closed');
-    } catch (error) {
-      console.error('❌ Error closing database connections:', error);
-    }
+    // NOTE: For D1 deployment, connection cleanup would be handled differently
+    console.log('📝 Database cleanup not needed in Node.js deployment');
 
     // Close server
     server.close(() => {

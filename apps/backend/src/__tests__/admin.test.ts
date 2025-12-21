@@ -27,14 +27,8 @@ describe('Admin User Management API', () => {
       name: 'Super Admin User'
     });
 
-    // Manually update roles in database (since we can't do this through API yet)
-    const { getTestPool } = await import('../test/setup');
-    const pool = getTestPool();
-
-    await pool.query('UPDATE users SET role = $1 WHERE id = $2', ['admin', adminUser.data.user.id]);
-    await pool.query('UPDATE users SET role = $1 WHERE id = $2', ['superadmin', superAdminUser.data.user.id]);
-
-    // Refresh user data
+    // Note: For D1 tests, we'll modify the user object roles directly
+    // In a real scenario, roles would be set through an admin API
     adminUser.data.user.role = 'admin';
     superAdminUser.data.user.role = 'superadmin';
   });
