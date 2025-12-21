@@ -3,7 +3,6 @@ import { AuthProvider } from './hooks/useAuth'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import Login from './pages/Login'
-import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Board from './pages/Board'
 import SettingsLayout from './pages/Settings'
@@ -16,7 +15,6 @@ export const AppRoutes = () => (
     <Routes>
       <Route path="/" element={<Login />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
       <Route path="/app" element={
         <ProtectedRoute>
           <Layout />

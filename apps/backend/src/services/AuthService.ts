@@ -1,199 +1,76 @@
-import jwt from 'jsonwebtoken';
+import type { D1Database } from '@cloudflare/workers-types';
 import { UserModel } from '../models/User';
-import { pool } from '../config/database';
-import crypto from 'crypto';
-import type { User, CreateUserRequest, LoginRequest, AuthResponse } from '../types';
-
-// Ensure JWT_SECRET is set, especially in production
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('CRITICAL: JWT_SECRET environment variable must be set in production');
-  }
-  console.warn('⚠️  Using insecure default JWT_SECRET - set JWT_SECRET environment variable for security');
-}
-const ACTUAL_JWT_SECRET = JWT_SECRET || 'development-only-insecure-key-do-not-use-in-production';
-const JWT_EXPIRES_IN = '1h';
-const REFRESH_TOKEN_EXPIRES_IN = '7d';
+import { auth as firebaseAuth } from '../config/firebase';
+import type { User } from '../types';
 
 export class AuthService {
-  static generateToken(user: User): string {
-    const payload = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      jti: crypto.randomUUID(), // Add unique identifier for token uniqueness
-    };
-    return jwt.sign(payload, ACTUAL_JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  }
+  /**
+   * Sync Firebase user to D1 database
+   * Creates user if doesn't exist, updates if exists
+   */
+  static async syncFirebaseUser(db: D1Database, firebaseUid: string): Promise<User> {
+    // Get user info from Firebase
+    const firebaseUser = await firebaseAuth.getUser(firebaseUid);
 
-  static verifyToken(token: string): any {
-    try {
-      const result = jwt.verify(token, ACTUAL_JWT_SECRET);
-      if (process.env.NODE_ENV === 'test') {
-        console.log('[verifyToken] Token verified successfully, payload:', { id: result.id, email: result.email, jti: result.jti?.substring(0, 8) });
-      }
-      return result;
-    } catch (error) {
-      if (process.env.NODE_ENV === 'test') {
-        console.log('[verifyToken] Token verification failed:', (error as Error).message);
-        console.log('[verifyToken] ACTUAL_JWT_SECRET length:', ACTUAL_JWT_SECRET.length);
-      }
-      return null;
-    }
-  }
+    // Check if user exists in D1
+    let user = await UserModel.findByFirebaseUid(db, firebaseUid);
 
-  static async register(userData: CreateUserRequest): Promise<AuthResponse> {
-    const existingUser = await UserModel.findByEmail(userData.email);
-    if (existingUser) {
-      throw new Error('User already exists');
-    }
-
-    const user = await UserModel.create(userData);
-    const token = this.generateToken(user);
-    const refreshToken = this.generateRefreshToken();
-    await this.storeRefreshToken(user.id, refreshToken);
-
-    const { password_hash, ...userWithoutPassword } = user;
-    return {
-      user: userWithoutPassword,
-      token,
-      refreshToken,
-    };
-  }
-
-  static async login(loginData: LoginRequest): Promise<AuthResponse> {
-    const user = await UserModel.findByEmail(loginData.email);
     if (!user) {
-      throw new Error('Invalid credentials');
-    }
+      // Check if user exists by email (migration case)
+      user = await UserModel.findByEmail(db, firebaseUser.email!);
 
-    const isValidPassword = await UserModel.verifyPassword(user, loginData.password);
-    if (!isValidPassword) {
-      throw new Error('Invalid credentials');
-    }
-
-    const token = this.generateToken(user);
-    const refreshToken = this.generateRefreshToken();
-    await this.storeRefreshToken(user.id, refreshToken);
-
-    const { password_hash, ...userWithoutPassword } = user;
-    return {
-      user: userWithoutPassword,
-      token,
-      refreshToken,
-    };
-  }
-
-  static async getUserFromToken(token: string): Promise<User | null> {
-    const payload = this.verifyToken(token);
-    if (!payload) return null;
-
-    return UserModel.findById(payload.id);
-  }
-
-  static async blacklistToken(token: string): Promise<void> {
-    try {
-      const payload = this.verifyToken(token);
-      if (!payload) return; // Don't blacklist invalid tokens
-
-      // Hash the token for storage (using SHA-256)
-      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-
-      // Calculate expiration time from token payload
-      const expiresAt = new Date(payload.exp * 1000);
-
-      if (process.env.NODE_ENV === 'test') {
-        console.log('[blacklistToken] Blacklisting token with hash:', tokenHash.substring(0, 16) + '...');
+      if (user) {
+        // Update existing user with Firebase UID
+        user = await UserModel.updateFirebaseUid(db, firebaseUser.email!, firebaseUid);
+      } else {
+        // Create new user
+        user = await UserModel.createFromFirebase(
+          db,
+          firebaseUid,
+          firebaseUser.email!,
+          firebaseUser.displayName || undefined
+        );
       }
-
-      await pool.query(
-        'INSERT INTO invalidated_tokens (token_hash, expires_at) VALUES ($1, $2) ON CONFLICT (token_hash) DO NOTHING',
-        [tokenHash, expiresAt]
-      );
-    } catch (error) {
-      console.error('Error blacklisting token:', error);
     }
-  }
 
-  static async isTokenBlacklisted(token: string): Promise<boolean> {
-    try {
-      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-
-      if (process.env.NODE_ENV === 'test' && token.length > 100) {
-        console.log('[isTokenBlacklisted] Checking token with hash:', tokenHash.substring(0, 16) + '...');
-      }
-
-      const result = await pool.query(
-        'SELECT 1 FROM invalidated_tokens WHERE token_hash = $1 AND expires_at > NOW()',
-        [tokenHash]
-      );
-
-      if (process.env.NODE_ENV === 'test' && token.length > 100) {
-        console.log('[isTokenBlacklisted] Found in blacklist:', result.rows.length > 0);
-      }
-
-      return result.rows.length > 0;
-    } catch (error) {
-      console.error('Error checking token blacklist:', error);
-      return false;
+    if (!user) {
+      throw new Error('Failed to create or update user');
     }
+
+    return user;
   }
 
-  static async cleanupExpiredTokens(): Promise<void> {
+  /**
+   * Get user from Firebase UID
+   */
+  static async getUserByFirebaseUid(db: D1Database, firebaseUid: string): Promise<User | null> {
+    return UserModel.findByFirebaseUid(db, firebaseUid);
+  }
+
+  /**
+   * Verify Firebase ID token and return user
+   */
+  static async verifyToken(db: D1Database, idToken: string): Promise<User | null> {
     try {
-      await pool.query('DELETE FROM invalidated_tokens WHERE expires_at <= NOW()');
-      await pool.query('DELETE FROM refresh_tokens WHERE expires_at <= NOW()');
+      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+      return await this.getUserByFirebaseUid(db, decodedToken.uid);
     } catch (error) {
-      console.error('Error during token cleanup:', error);
-    }
-  }
-
-  static generateRefreshToken(): string {
-    return crypto.randomBytes(32).toString('hex');
-  }
-
-  static async storeRefreshToken(userId: number, refreshToken: string): Promise<void> {
-    try {
-      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-
-      await pool.query(
-        'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-        [userId, tokenHash, expiresAt]
-      );
-    } catch (error) {
-      console.error('Error storing refresh token:', error);
-      throw error;
-    }
-  }
-
-  static async validateRefreshToken(refreshToken: string): Promise<User | null> {
-    try {
-      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-
-      const result = await pool.query(
-        'SELECT user_id FROM refresh_tokens WHERE token_hash = $1 AND expires_at > NOW()',
-        [tokenHash]
-      );
-
-      if (result.rows.length === 0) {
-        return null;
-      }
-
-      return UserModel.findById(result.rows[0].user_id);
-    } catch (error) {
-      console.error('Error validating refresh token:', error);
+      console.error('Token verification failed:', error);
       return null;
     }
   }
 
-  static async invalidateRefreshTokens(userId: number): Promise<void> {
-    try {
-      await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
-    } catch (error) {
-      console.error('Error invalidating refresh tokens:', error);
+  /**
+   * Delete user from Firebase and D1
+   */
+  static async deleteUser(db: D1Database, firebaseUid: string): Promise<void> {
+    // Delete from Firebase
+    await firebaseAuth.deleteUser(firebaseUid);
+
+    // Delete from D1
+    const user = await UserModel.findByFirebaseUid(db, firebaseUid);
+    if (user) {
+      await UserModel.delete(db, user.id);
     }
   }
 }

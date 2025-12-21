@@ -7,7 +7,11 @@ export class TaskController {
   static async getAll(c: Context) {
     try {
       const user = c.get('user');
-      const tasks = await TaskService.getAllTasksByUser(user.id);
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
+      const tasks = await TaskService.getAllTasksByUser(db, user.id);
       return c.json(tasks);
     } catch (error) {
       console.error('Controller error - getAll:', error);
@@ -23,10 +27,14 @@ export class TaskController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check task ownership
       try {
-        await checkTaskOwnership(id, user.id);
+        await checkTaskOwnership(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Task not found') {
@@ -39,7 +47,7 @@ export class TaskController {
         throw error;
       }
 
-      const task = await TaskService.getTaskById(id);
+      const task = await TaskService.getTaskById(db, id);
       return c.json(task);
     } catch (error) {
       console.error('Controller error - getById:', error);
@@ -54,8 +62,12 @@ export class TaskController {
     try {
       const body: CreateTaskRequest = await c.req.json();
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
-      const task = await TaskService.createTask(body, user.id);
+      const task = await TaskService.createTask(db, body, user.id);
       return c.json(task, 201);
     } catch (error) {
       console.error('Controller error - create:', error);
@@ -74,10 +86,14 @@ export class TaskController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check task ownership
       try {
-        await checkTaskOwnership(id, user.id);
+        await checkTaskOwnership(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Task not found') {
@@ -91,7 +107,7 @@ export class TaskController {
       }
 
       const body: UpdateTaskRequest = await c.req.json();
-      const task = await TaskService.updateTask(id, body);
+      const task = await TaskService.updateTask(db, id, body);
 
       return c.json(task);
     } catch (error) {
@@ -111,10 +127,14 @@ export class TaskController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check task ownership
       try {
-        await checkTaskOwnership(id, user.id);
+        await checkTaskOwnership(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Task not found') {
@@ -127,7 +147,7 @@ export class TaskController {
         throw error;
       }
 
-      await TaskService.deleteTask(id);
+      await TaskService.deleteTask(db, id);
       return c.json({ message: 'Task deleted successfully' });
     } catch (error) {
       console.error('Controller error - delete:', error);

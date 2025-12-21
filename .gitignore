@@ -1,3 +1,7 @@
+# Firebase credentials
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+
 # Dependencies
 node_modules/
 */node_modules/
@@ -107,3 +111,4 @@ Desktop.ini
 
 # Project specific
 AGENTS.md
+ firebase-service-account.json

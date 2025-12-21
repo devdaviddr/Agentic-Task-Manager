@@ -116,21 +116,33 @@ app.get('/', (c) => c.json({
 // Health check route
 app.get('/health', async (c) => {
   try {
-    // Import pool dynamically to avoid circular dependency
-    const { pool } = await import('./config/database');
-    await pool.query('SELECT 1');
+    // For D1 database, check if DB is available in the environment
+    const db = (c.env as any)?.DB;
+    let databaseStatus = 'disconnected';
+    
+    if (db) {
+      // Simple query to test D1 database connectivity
+      try {
+        await db.prepare('SELECT 1').first();
+        databaseStatus = 'connected';
+      } catch (dbError) {
+        console.error('Database health check failed:', dbError);
+        databaseStatus = 'error';
+      }
+    }
 
     const health = {
-      status: 'healthy',
+      status: databaseStatus === 'connected' ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
-      database: 'connected',
+      database: databaseStatus,
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       version: process.version
     };
 
-    return c.json(health);
+    const statusCode = databaseStatus === 'connected' ? 200 : 503;
+    return c.json(health, statusCode);
   } catch (error) {
     return c.json({
       status: 'unhealthy',

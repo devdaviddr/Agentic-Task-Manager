@@ -16,21 +16,26 @@ const userRoutes = new Hono<{ Variables: Variables }>();
 userRoutes.get('/users', authMiddleware, async (c: AppContext) => {
   try {
     const currentUser = c.get('user');
+    const db = (c.env as any)?.DB;
+    if (!db) {
+      return c.json({ error: 'Database not available' }, 500);
+    }
     
     // If user is admin/superadmin, return all users
     if (currentUser.role === 'admin' || currentUser.role === 'superadmin') {
-      const users = await UserModel.findAll();
+      const users = await UserModel.findAll(db);
       return c.json(users);
     }
     
     // Otherwise, return only the current user's data
-    const userData = await UserModel.findById(currentUser.id);
+    const userData = await UserModel.findById(db, currentUser.id);
     if (!userData) {
       return c.json({ error: 'User not found' }, 404);
     }
     
     // Remove sensitive fields for regular users
-    const { password_hash, ...safeUserData } = userData;
+    // Note: password_hash was removed in Firebase migration
+    const safeUserData = userData;
     
     // Return as array for consistency with admin response
     return c.json([safeUserData]);
@@ -56,7 +61,12 @@ userRoutes.put('/users/:id', authMiddleware, async (c: AppContext) => {
       return c.json({ error: 'Cannot update role through this endpoint' }, 403);
     }
 
-    const updatedUser = await UserModel.update(id, userData);
+    const db = (c.env as any)?.DB;
+    if (!db) {
+      return c.json({ error: 'Database not available' }, 500);
+    }
+
+    const updatedUser = await UserModel.update(db, id, userData);
     if (!updatedUser) {
       return c.json({ error: 'User not found or no changes made' }, 404);
     }

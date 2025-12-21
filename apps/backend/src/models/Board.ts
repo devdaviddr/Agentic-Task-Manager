@@ -1,166 +1,234 @@
-import { pool } from '../config/database';
+import type { D1Database } from '@cloudflare/workers-types';
 import type { Board, CreateBoardRequest, UpdateBoardRequest, BoardWithColumns } from '../types';
 
 export class BoardModel {
-  static async findAll(userId: number = 1): Promise<Board[]> {
-    const result = await pool.query(`
+  static async findAll(db: D1Database, userId: number = 1): Promise<Board[]> {
+    const stmt = db.prepare(`
       SELECT id, name, description, background, column_theme, archived, user_id, created_at, updated_at
       FROM boards
-      WHERE user_id = $1
+      WHERE user_id = ?
       ORDER BY created_at DESC
-    `, [userId]);
-    return result.rows;
+    `);
+    const result = await stmt.bind(userId).all();
+    return result.results.map(row => this.mapToBoard(row));
   }
 
-  static async findById(id: number): Promise<Board | null> {
-    const result = await pool.query(`
+  static async findById(db: D1Database, id: number): Promise<Board | null> {
+    const stmt = db.prepare(`
       SELECT id, name, description, background, column_theme, archived, user_id, created_at, updated_at
       FROM boards
-      WHERE id = $1
-    `, [id]);
-    return result.rows[0] || null;
+      WHERE id = ?
+    `);
+    const result = await stmt.bind(id).first();
+    return result ? this.mapToBoard(result) : null;
   }
 
-  static async findByIdWithColumns(id: number): Promise<BoardWithColumns | null> {
-    const boardResult = await pool.query(`
-      SELECT id, name, description, background, column_theme, archived, user_id, created_at, updated_at
-      FROM boards
-      WHERE id = $1
-    `, [id]);
+  static async findByIdWithColumns(db: D1Database, id: number): Promise<BoardWithColumns | null> {
+    // First get the board
+    const board = await this.findById(db, id);
+    if (!board) return null;
 
-    if (!boardResult.rows[0]) return null;
-
-    const columnsResult = await pool.query(`
-      SELECT
-        c.id, c.board_id, c.name, c.position, c.created_at, c.updated_at,
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'id', i.id,
-              'column_id', i.column_id,
-              'title', i.title,
-              'description', i.description,
-              'position', i.position,
-              'start_date', i.start_date,
-              'end_date', i.end_date,
-              'effort', i.effort,
-              'label', i.label,
-              'priority', i.priority,
-              'archived', i.archived,
-              'created_at', i.created_at,
-              'updated_at', i.updated_at,
-              'tags', COALESCE(
-                (
-                  SELECT json_agg(
-                    json_build_object(
-                      'id', t.id,
-                      'name', t.name,
-                      'color', t.color,
-                      'created_at', t.created_at,
-                      'updated_at', t.updated_at
-                    )
-                  )
-                  FROM item_tags it2
-                  JOIN tags t ON it2.tag_id = t.id
-                  WHERE it2.item_id = i.id
-                ),
-                '[]'::json
-              ),
-              'assigned_users', COALESCE(
-                (
-                  SELECT json_agg(
-                    json_build_object(
-                      'id', u.id,
-                      'email', u.email,
-                      'name', u.name
-                    )
-                  )
-                  FROM item_users iu2
-                  JOIN users u ON iu2.user_id = u.id
-                  WHERE iu2.item_id = i.id
-                ),
-                '[]'::json
-              )
-            ) ORDER BY i.position
-          ) FILTER (WHERE i.id IS NOT NULL AND i.archived = FALSE),
-          '[]'::json
-        ) as items
-      FROM columns c
-      LEFT JOIN items i ON c.id = i.column_id AND i.archived = FALSE
-      WHERE c.board_id = $1
-      GROUP BY c.id, c.board_id, c.name, c.position, c.created_at, c.updated_at
-      ORDER BY c.position
-    `, [id]);
+    // Then get columns with their items
+    const columnsStmt = db.prepare(`
+      SELECT id, board_id, name, position, created_at, updated_at
+      FROM columns
+      WHERE board_id = ?
+      ORDER BY position
+    `);
+    const columnsResult = await columnsStmt.bind(id).all();
+    
+    const columns = [];
+    for (const column of columnsResult.results) {
+      // Get items for this column
+      const itemsStmt = db.prepare(`
+        SELECT id, column_id, title, description, position, start_date, end_date, effort, label, priority, archived, created_at, updated_at
+        FROM items
+        WHERE column_id = ? AND archived = 0
+        ORDER BY position
+      `);
+      const itemsResult = await itemsStmt.bind(column.id).all();
+      
+      const items = [];
+      for (const item of itemsResult.results) {
+        // Get tags for this item
+        const tagsStmt = db.prepare(`
+          SELECT t.id, t.name, t.color, t.created_at, t.updated_at
+          FROM tags t
+          INNER JOIN item_tags it ON t.id = it.tag_id
+          WHERE it.item_id = ?
+        `);
+        const tagsResult = await tagsStmt.bind(item.id).all();
+        
+        // Get assigned users for this item
+        const usersStmt = db.prepare(`
+          SELECT u.id, u.email, u.firebase_uid, u.name, u.role, u.created_at, u.updated_at
+          FROM users u
+          INNER JOIN item_users iu ON u.id = iu.user_id
+          WHERE iu.item_id = ?
+        `);
+        const usersResult = await usersStmt.bind(item.id).all();
+        
+        items.push({
+          ...this.mapToItem(item),
+          tags: tagsResult.results.map(row => this.mapToTag(row)),
+          assigned_users: usersResult.results.map(row => this.mapToUser(row))
+        });
+      }
+      
+      columns.push({
+        ...this.mapToColumn(column),
+        items
+      });
+    }
 
     return {
-      ...boardResult.rows[0],
-      columns: columnsResult.rows
+      ...board,
+      columns
     };
   }
 
-  static async create(boardData: CreateBoardRequest, userId: number): Promise<Board> {
-    const result = await pool.query(`
+  static async create(db: D1Database, boardData: CreateBoardRequest, userId: number): Promise<Board> {
+    const stmt = db.prepare(`
       INSERT INTO boards (name, description, background, column_theme, archived, user_id, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING id, name, description, background, column_theme, archived, user_id, created_at, updated_at
-    `, [boardData.name, boardData.description || null, boardData.background || 'bg-gray-50', boardData.column_theme || 'light', boardData.archived || false, userId]);
-    return result.rows[0];
+    `);
+    const result = await stmt.bind(
+      boardData.name,
+      boardData.description || null,
+      boardData.background || 'bg-gray-50',
+      boardData.column_theme || 'light',
+      boardData.archived ? 1 : 0,
+      userId
+    ).first();
+    
+    if (!result) {
+      throw new Error('Failed to create board');
+    }
+    
+    return this.mapToBoard(result);
   }
 
-   static async update(id: number, boardData: Partial<UpdateBoardRequest>): Promise<Board | null> {
+   static async update(db: D1Database, id: number, boardData: Partial<UpdateBoardRequest>): Promise<Board | null> {
      const fields = [];
      const values = [];
-     let paramCount = 1;
 
      if (boardData.name !== undefined) {
-       fields.push(`name = $${paramCount}`);
+       fields.push('name = ?');
        values.push(boardData.name);
-       paramCount++;
      }
 
      if (boardData.description !== undefined) {
-       fields.push(`description = $${paramCount}`);
+       fields.push('description = ?');
        values.push(boardData.description);
-       paramCount++;
      }
 
      if ('background' in boardData) {
-       fields.push(`background = $${paramCount}`);
+       fields.push('background = ?');
        values.push(boardData.background);
-       paramCount++;
      }
 
      if ('column_theme' in boardData) {
-       fields.push(`column_theme = $${paramCount}`);
+       fields.push('column_theme = ?');
        values.push(boardData.column_theme);
-       paramCount++;
      }
 
      if ('archived' in boardData) {
-       fields.push(`archived = $${paramCount}`);
-       values.push(boardData.archived);
-       paramCount++;
+       fields.push('archived = ?');
+       values.push(boardData.archived ? 1 : 0);
      }
 
      if (fields.length === 0) {
        return null;
      }
 
-     fields.push(`updated_at = NOW()`);
+     fields.push('updated_at = CURRENT_TIMESTAMP');
      values.push(id);
 
-     const result = await pool.query(`
+     const stmt = db.prepare(`
        UPDATE boards
        SET ${fields.join(', ')}
-       WHERE id = $${paramCount}
+       WHERE id = ?
        RETURNING id, name, description, background, column_theme, archived, user_id, created_at, updated_at
-     `, values);
+     `);
 
-     return result.rows[0] ?? null;
+     const result = await stmt.bind(...values).first();
+     return result ? this.mapToBoard(result) : null;
    }
 
-  static async delete(id: number): Promise<boolean> {
-    const result = await pool.query('DELETE FROM boards WHERE id = $1', [id]);
-    return (result.rowCount ?? 0) > 0;
+  static async delete(db: D1Database, id: number): Promise<boolean> {
+    const stmt = db.prepare('DELETE FROM boards WHERE id = ?');
+    const result = await stmt.bind(id).run();
+    return result.success && result.meta.changes > 0;
+  }
+
+  // Helper method to map D1 result to Board type
+  private static mapToBoard(row: any): Board {
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      background: row.background,
+      column_theme: row.column_theme,
+      archived: Boolean(row.archived),
+      user_id: row.user_id,
+      created_at: new Date(row.created_at),
+      updated_at: new Date(row.updated_at)
+    };
+  }
+
+  // Helper method to map D1 result to Column type
+  private static mapToColumn(row: any) {
+    return {
+      id: row.id,
+      board_id: row.board_id,
+      name: row.name,
+      position: row.position,
+      created_at: new Date(row.created_at),
+      updated_at: new Date(row.updated_at)
+    };
+  }
+
+  // Helper method to map D1 result to Item type
+  private static mapToItem(row: any) {
+    return {
+      id: row.id,
+      column_id: row.column_id,
+      title: row.title,
+      description: row.description,
+      position: row.position,
+      start_date: row.start_date,
+      end_date: row.end_date,
+      effort: row.effort,
+      label: row.label,
+      priority: row.priority,
+      archived: Boolean(row.archived),
+      created_at: new Date(row.created_at),
+      updated_at: new Date(row.updated_at)
+    };
+  }
+
+  // Helper method to map D1 result to Tag type
+  private static mapToTag(row: any) {
+    return {
+      id: row.id,
+      name: row.name,
+      color: row.color,
+      created_at: new Date(row.created_at),
+      updated_at: new Date(row.updated_at)
+    };
+  }
+
+  // Helper method to map D1 result to User type
+  private static mapToUser(row: any) {
+    return {
+      id: row.id,
+      email: row.email,
+      firebase_uid: row.firebase_uid,
+      name: row.name,
+      role: row.role,
+      created_at: new Date(row.created_at),
+      updated_at: new Date(row.updated_at)
+    };
   }
 }

@@ -1,369 +1,370 @@
-import { pool } from '../config/database';
+import type { D1Database } from '@cloudflare/workers-types';
 import type { Item, CreateItemRequest, MoveItemRequest } from '../types';
 
 export class ItemModel {
-  static async findByColumnId(columnId: number): Promise<Item[]> {
-    const result = await pool.query(`
-      SELECT
-        i.id, i.column_id, i.title, i.description, i.position, i.start_date, i.end_date, i.effort, i.label, i.priority, i.archived, i.created_at, i.updated_at,
-        COALESCE((
-          SELECT json_agg(
-            json_build_object(
-              'id', t.id,
-              'name', t.name,
-              'color', t.color,
-              'created_at', t.created_at,
-              'updated_at', t.updated_at
-            )
-          )
-          FROM item_tags it
-          LEFT JOIN tags t ON it.tag_id = t.id
-          WHERE it.item_id = i.id
-        ), '[]'::json) as tags,
-        COALESCE((
-          SELECT json_agg(
-            json_build_object(
-              'id', u.id,
-              'email', u.email,
-              'name', u.name
-            )
-          )
-          FROM item_users iu
-          LEFT JOIN users u ON iu.user_id = u.id
-          WHERE iu.item_id = i.id
-        ), '[]'::json) as assigned_users
-      FROM items i
-      WHERE i.column_id = $1 AND i.archived = FALSE
-      ORDER BY i.position
-    `, [columnId]);
-    return result.rows;
-  }
-
-  static async findById(id: number): Promise<Item | null> {
-    const result = await pool.query(`
-      SELECT
-        i.id, i.column_id, i.title, i.description, i.position, i.start_date, i.end_date, i.effort, i.label, i.priority, i.archived, i.created_at, i.updated_at,
-        COALESCE((
-          SELECT json_agg(
-            json_build_object(
-              'id', t.id,
-              'name', t.name,
-              'color', t.color,
-              'created_at', t.created_at,
-              'updated_at', t.updated_at
-            )
-          )
-          FROM item_tags it
-          LEFT JOIN tags t ON it.tag_id = t.id
-          WHERE it.item_id = i.id
-        ), '[]'::json) as tags,
-        COALESCE((
-          SELECT json_agg(
-            json_build_object(
-              'id', u.id,
-              'email', u.email,
-              'name', u.name
-            )
-          )
-          FROM item_users iu
-          LEFT JOIN users u ON iu.user_id = u.id
-          WHERE iu.item_id = i.id
-        ), '[]'::json) as assigned_users
-      FROM items i
-      WHERE i.id = $1
-    `, [id]);
-    return result.rows[0] || null;
-  }
-
-  static async create(columnId: number, itemData: CreateItemRequest): Promise<Item> {
-    const client = await pool.connect();
-
-    try {
-      await client.query('BEGIN');
-
-      // Get the highest position for this column
-      const positionResult = await client.query(`
-        SELECT COALESCE(MAX(position), -1) + 1 as next_position
-        FROM items
-        WHERE column_id = $1
-      `, [columnId]);
-
-      const position = itemData.position ?? positionResult.rows[0].next_position;
-
-      const result = await client.query(`
-        INSERT INTO items (column_id, title, description, position, start_date, end_date, effort, label, priority, archived, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE, NOW(), NOW())
-        RETURNING id, column_id, title, description, position, start_date, end_date, effort, label, priority, archived, created_at, updated_at
-      `, [columnId, itemData.title, itemData.description || null, position, itemData.start_date || null, itemData.end_date || null, itemData.effort || null, itemData.label || null, itemData.priority || null]);
-
-      const item = result.rows[0];
-
-       // Handle tags if provided
-       if (itemData.tag_ids && itemData.tag_ids.length > 0) {
-         const tagValues = itemData.tag_ids.map((tagId, index) => `($1, $${index + 2})`).join(', ');
-         const tagParams = [item.id, ...itemData.tag_ids];
-         await client.query(`
-           INSERT INTO item_tags (item_id, tag_id)
-           VALUES ${tagValues}
-         `, tagParams);
-       }
-
-       // Handle users if provided
-       if (itemData.user_ids && itemData.user_ids.length > 0) {
-         const userValues = itemData.user_ids.map((userId, index) => `($1, $${index + 2})`).join(', ');
-         const userParams = [item.id, ...itemData.user_ids];
-         await client.query(`
-           INSERT INTO item_users (item_id, user_id)
-           VALUES ${userValues}
-         `, userParams);
-       }
-
-      await client.query('COMMIT');
-
-      // Fetch the complete item with tags
-      return await this.findById(item.id) as Item;
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+  static async findByColumnId(db: D1Database, columnId: number): Promise<Item[]> {
+    const stmt = db.prepare(`
+      SELECT id, column_id, title, description, position, start_date, end_date, effort, label, priority, archived, created_at, updated_at
+      FROM items
+      WHERE column_id = ? AND archived = 0
+      ORDER BY position
+    `);
+    const result = await stmt.bind(columnId).all();
+    
+    const items = [];
+    for (const item of result.results) {
+      const fullItem = await this.getItemWithRelations(db, item);
+      items.push(fullItem);
     }
+    
+    return items;
   }
 
-  static async update(id: number, itemData: Partial<CreateItemRequest>): Promise<Item | null> {
-    const client = await pool.connect();
+  static async findById(db: D1Database, id: number): Promise<Item | null> {
+    const stmt = db.prepare(`
+      SELECT id, column_id, title, description, position, start_date, end_date, effort, label, priority, archived, created_at, updated_at
+      FROM items
+      WHERE id = ?
+    `);
+    const result = await stmt.bind(id).first();
+    
+    if (!result) return null;
+    
+    return this.getItemWithRelations(db, result);
+  }
 
-    try {
-      await client.query('BEGIN');
+  static async create(db: D1Database, columnId: number, itemData: CreateItemRequest): Promise<Item> {
+    // Get the highest position for this column
+    const positionStmt = db.prepare(`
+      SELECT COALESCE(MAX(position), -1) + 1 as next_position
+      FROM items
+      WHERE column_id = ?
+    `);
+    const positionResult = await positionStmt.bind(columnId).first();
+    const position = itemData.position ?? positionResult?.next_position ?? 0;
 
-      // Check if item exists and lock it for update
-      const existingItem = await client.query('SELECT id FROM items WHERE id = $1 FOR UPDATE', [id]);
-      if (existingItem.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return null;
+    const stmt = db.prepare(`
+      INSERT INTO items (column_id, title, description, position, start_date, end_date, effort, label, priority, archived, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING id, column_id, title, description, position, start_date, end_date, effort, label, priority, archived, created_at, updated_at
+    `);
+    
+    const result = await stmt.bind(
+      columnId,
+      itemData.title,
+      itemData.description || null,
+      position,
+      itemData.start_date || null,
+      itemData.end_date || null,
+      itemData.effort || null,
+      itemData.label || null,
+      itemData.priority || null
+    ).first();
+
+    if (!result) {
+      throw new Error('Failed to create item');
+    }
+
+    const item = this.mapToItem(result);
+
+    // Handle tags if provided
+    if (itemData.tag_ids && itemData.tag_ids.length > 0) {
+      for (const tagId of itemData.tag_ids) {
+        const tagStmt = db.prepare('INSERT INTO item_tags (item_id, tag_id) VALUES (?, ?)');
+        await tagStmt.bind(item.id, tagId).run();
       }
+    }
 
-      const fields = [];
-      const values = [];
-      let paramCount = 1;
-
-      if (itemData.title !== undefined) {
-        fields.push(`title = $${paramCount}`);
-        values.push(itemData.title);
-        paramCount++;
+    // Handle users if provided
+    if (itemData.user_ids && itemData.user_ids.length > 0) {
+      for (const userId of itemData.user_ids) {
+        const userStmt = db.prepare('INSERT INTO item_users (item_id, user_id) VALUES (?, ?)');
+        await userStmt.bind(item.id, userId).run();
       }
+    }
 
-      if (itemData.description !== undefined) {
-        fields.push(`description = $${paramCount}`);
-        values.push(itemData.description);
-        paramCount++;
+    // Fetch the complete item with tags and users
+    return await this.findById(db, item.id) as Item;
+  }
+
+  static async update(db: D1Database, id: number, itemData: Partial<CreateItemRequest>): Promise<Item | null> {
+    // Check if item exists
+    const existingItem = await this.findById(db, id);
+    if (!existingItem) return null;
+
+    const fields = [];
+    const values = [];
+
+    if (itemData.title !== undefined) {
+      fields.push('title = ?');
+      values.push(itemData.title);
+    }
+
+    if (itemData.description !== undefined) {
+      fields.push('description = ?');
+      values.push(itemData.description);
+    }
+
+    if (itemData.position !== undefined) {
+      fields.push('position = ?');
+      values.push(itemData.position);
+    }
+
+    if (itemData.start_date !== undefined) {
+      fields.push('start_date = ?');
+      values.push(itemData.start_date);
+    }
+
+    if (itemData.end_date !== undefined) {
+      fields.push('end_date = ?');
+      values.push(itemData.end_date);
+    }
+
+    if (itemData.effort !== undefined) {
+      fields.push('effort = ?');
+      values.push(itemData.effort);
+    }
+
+    if ('label' in itemData) {
+      fields.push('label = ?');
+      values.push(itemData.label || null);
+    }
+
+    if ('priority' in itemData) {
+      fields.push('priority = ?');
+      values.push(itemData.priority || null);
+    }
+
+    if (fields.length > 0) {
+      fields.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(id);
+
+      const stmt = db.prepare(`
+        UPDATE items
+        SET ${fields.join(', ')}
+        WHERE id = ?
+      `);
+      
+      await stmt.bind(...values).run();
+    }
+
+    // Handle tags if provided
+    if (itemData.tag_ids !== undefined) {
+      // Remove all existing tags for this item
+      const deleteTagsStmt = db.prepare('DELETE FROM item_tags WHERE item_id = ?');
+      await deleteTagsStmt.bind(id).run();
+
+      // Add new tags if any
+      if (itemData.tag_ids.length > 0) {
+        for (const tagId of itemData.tag_ids) {
+          const tagStmt = db.prepare('INSERT INTO item_tags (item_id, tag_id) VALUES (?, ?)');
+          await tagStmt.bind(id, tagId).run();
+        }
       }
+    }
 
-      if (itemData.position !== undefined) {
-        fields.push(`position = $${paramCount}`);
-        values.push(itemData.position);
-        paramCount++;
-      }
+    // Handle users if provided
+    if (itemData.user_ids !== undefined) {
+      // Remove all existing users for this item
+      const deleteUsersStmt = db.prepare('DELETE FROM item_users WHERE item_id = ?');
+      await deleteUsersStmt.bind(id).run();
 
-      if (itemData.start_date !== undefined) {
-        fields.push(`start_date = $${paramCount}`);
-        values.push(itemData.start_date);
-        paramCount++;
-      }
-
-      if (itemData.end_date !== undefined) {
-        fields.push(`end_date = $${paramCount}`);
-        values.push(itemData.end_date);
-        paramCount++;
-      }
-
-      if (itemData.effort !== undefined) {
-        fields.push(`effort = $${paramCount}`);
-        values.push(itemData.effort);
-        paramCount++;
-      }
-
-      if ('label' in itemData) {
-        fields.push(`label = $${paramCount}`);
-        values.push(itemData.label || null);
-        paramCount++;
-      }
-
-      if ('priority' in itemData) {
-        fields.push(`priority = $${paramCount}`);
-        values.push(itemData.priority || null);
-        paramCount++;
-      }
-
-      if (fields.length > 0) {
-        fields.push(`updated_at = NOW()`);
-        values.push(id);
-
-        const result = await client.query(`
-          UPDATE items
-          SET ${fields.join(', ')}
-          WHERE id = $${paramCount}
-          RETURNING id
-        `, values);
-      }
-
-       // Handle tags if provided
-       if (itemData.tag_ids !== undefined) {
-         // Remove all existing tags for this item
-         await client.query('DELETE FROM item_tags WHERE item_id = $1', [id]);
-
-         // Add new tags if any
-         if (itemData.tag_ids.length > 0) {
-           const tagValues = itemData.tag_ids.map((tagId, index) => `($1, $${index + 2})`).join(', ');
-           const tagParams = [id, ...itemData.tag_ids];
-           await client.query(`
-             INSERT INTO item_tags (item_id, tag_id)
-             VALUES ${tagValues}
-           `, tagParams);
-         }
-       }
-
-        // Handle users if provided
-        if (itemData.user_ids !== undefined) {
-          // Remove all existing users for this item
-          await client.query('DELETE FROM item_users WHERE item_id = $1', [id]);
-
-          // Add new users if any
-          if (itemData.user_ids.length > 0) {
-            // Check which users exist
-            const existingUsers = await client.query('SELECT id FROM users WHERE id = ANY($1)', [itemData.user_ids]);
-            const existingIds = existingUsers.rows.map(row => row.id);
-            const validUserIds = itemData.user_ids.filter(id => existingIds.includes(id));
-
-            if (validUserIds.length > 0) {
-              const userValues = validUserIds.map((userId, index) => `($1, $${index + 2})`).join(', ');
-              const userParams = [id, ...validUserIds];
-              await client.query(`
-                INSERT INTO item_users (item_id, user_id)
-                VALUES ${userValues}
-              `, userParams);
-            }
+      // Add new users if any
+      if (itemData.user_ids.length > 0) {
+        // Check which users exist first
+        for (const userId of itemData.user_ids) {
+          const userExistsStmt = db.prepare('SELECT id FROM users WHERE id = ?');
+          const userExists = await userExistsStmt.bind(userId).first();
+          
+          if (userExists) {
+            const userStmt = db.prepare('INSERT INTO item_users (item_id, user_id) VALUES (?, ?)');
+            await userStmt.bind(id, userId).run();
           }
         }
-
-      await client.query('COMMIT');
-
-      // Fetch the complete item with tags
-      return await this.findById(id);
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+      }
     }
+
+    // Fetch the complete item with tags and users
+    return await this.findById(db, id);
   }
 
-  static async delete(id: number): Promise<boolean> {
-    const result = await pool.query('DELETE FROM items WHERE id = $1', [id]);
-    return (result.rowCount ?? 0) > 0;
+  static async delete(db: D1Database, id: number): Promise<boolean> {
+    const stmt = db.prepare('DELETE FROM items WHERE id = ?');
+    const result = await stmt.bind(id).run();
+    return result.success && result.meta.changes > 0;
   }
 
-  static async archive(id: number, archived: boolean = true): Promise<Item | null> {
-    const result = await pool.query(`
+  static async archive(db: D1Database, id: number, archived: boolean = true): Promise<Item | null> {
+    const stmt = db.prepare(`
       UPDATE items
-      SET archived = $1, updated_at = NOW()
-      WHERE id = $2
-      RETURNING id
-    `, [archived, id]);
+      SET archived = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    
+    const result = await stmt.bind(archived ? 1 : 0, id).run();
 
-    if (result.rows.length === 0) {
+    if (!result.success || result.meta.changes === 0) {
       return null;
     }
 
     // Fetch the complete item with tags
-    return await this.findById(id);
+    return await this.findById(db, id);
   }
 
-  static async assignUser(itemId: number, userId: number): Promise<boolean> {
-    const result = await pool.query(`
-      INSERT INTO item_users (item_id, user_id)
-      VALUES ($1, $2)
-      ON CONFLICT (item_id, user_id) DO NOTHING
-    `, [itemId, userId]);
-    return (result.rowCount ?? 0) > 0;
+  static async assignUser(db: D1Database, itemId: number, userId: number): Promise<boolean> {
+    const stmt = db.prepare(`
+      INSERT OR IGNORE INTO item_users (item_id, user_id)
+      VALUES (?, ?)
+    `);
+    const result = await stmt.bind(itemId, userId).run();
+    return result.success;
   }
 
-  static async removeUser(itemId: number, userId: number): Promise<boolean> {
-    const result = await pool.query(`
+  static async removeUser(db: D1Database, itemId: number, userId: number): Promise<boolean> {
+    const stmt = db.prepare(`
       DELETE FROM item_users
-      WHERE item_id = $1 AND user_id = $2
-    `, [itemId, userId]);
-    return (result.rowCount ?? 0) > 0;
+      WHERE item_id = ? AND user_id = ?
+    `);
+    const result = await stmt.bind(itemId, userId).run();
+    return result.success && result.meta.changes > 0;
   }
 
-  static async move(id: number, moveData: MoveItemRequest): Promise<Item | null> {
-    const client = await pool.connect();
+  static async move(db: D1Database, id: number, moveData: MoveItemRequest): Promise<Item | null> {
+    // Get current item info
+    const currentItemStmt = db.prepare('SELECT id, column_id, position FROM items WHERE id = ?');
+    const currentItemResult = await currentItemStmt.bind(id).first();
+    
+    if (!currentItemResult) return null;
+
+    const oldColumnId = currentItemResult.column_id as number;
+    const oldPosition = currentItemResult.position as number;
+    const { column_id: newColumnId, position: newPosition } = moveData;
 
     try {
-      await client.query('BEGIN');
-
-      // Get current item info
-      const currentItem = await client.query('SELECT id, column_id, position FROM items WHERE id = $1', [id]);
-      if (currentItem.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return null;
-      }
-
-      const { column_id: oldColumnId, position: oldPosition } = currentItem.rows[0];
-      const { column_id: newColumnId, position: newPosition } = moveData;
-
       if (oldColumnId === newColumnId) {
         // Moving within the same column
         if (newPosition > oldPosition) {
           // Moving down: shift items between old and new position up
-          await client.query(`
+          const stmt1 = db.prepare(`
             UPDATE items
-            SET position = position - 1
-            WHERE column_id = $1 AND position > $2 AND position <= $3
-          `, [oldColumnId, oldPosition, newPosition]);
+            SET position = position - 1, updated_at = CURRENT_TIMESTAMP
+            WHERE column_id = ? AND position > ? AND position <= ?
+          `);
+          await stmt1.bind(oldColumnId, oldPosition, newPosition).run();
         } else if (newPosition < oldPosition) {
           // Moving up: shift items between new and old position down
-          await client.query(`
+          const stmt2 = db.prepare(`
             UPDATE items
-            SET position = position + 1
-            WHERE column_id = $1 AND position >= $2 AND position < $3
-          `, [oldColumnId, newPosition, oldPosition]);
+            SET position = position + 1, updated_at = CURRENT_TIMESTAMP
+            WHERE column_id = ? AND position >= ? AND position < ?
+          `);
+          await stmt2.bind(oldColumnId, newPosition, oldPosition).run();
         }
         // If same position, do nothing
       } else {
         // Moving to a different column
         // 1. Shift items in old column down to fill the gap
-        await client.query(`
+        const stmt3 = db.prepare(`
           UPDATE items
-          SET position = position - 1
-          WHERE column_id = $1 AND position > $2
-        `, [oldColumnId, oldPosition]);
+          SET position = position - 1, updated_at = CURRENT_TIMESTAMP
+          WHERE column_id = ? AND position > ?
+        `);
+        await stmt3.bind(oldColumnId, oldPosition).run();
 
         // 2. Shift items in new column up to make space
-        await client.query(`
+        const stmt4 = db.prepare(`
           UPDATE items
-          SET position = position + 1
-          WHERE column_id = $1 AND position >= $2
-        `, [newColumnId, newPosition]);
+          SET position = position + 1, updated_at = CURRENT_TIMESTAMP
+          WHERE column_id = ? AND position >= ?
+        `);
+        await stmt4.bind(newColumnId, newPosition).run();
       }
 
       // Update the item
-      const result = await client.query(`
+      const stmt5 = db.prepare(`
         UPDATE items
-        SET column_id = $1, position = $2, updated_at = NOW()
-        WHERE id = $3
-        RETURNING id
-      `, [newColumnId, newPosition, id]);
-
-      await client.query('COMMIT');
+        SET column_id = ?, position = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+      await stmt5.bind(newColumnId, newPosition, id).run();
 
       // Fetch the complete item with tags
-      return await this.findById(id);
+      return await this.findById(db, id);
     } catch (error) {
-      await client.query('ROLLBACK');
+      console.error('Error moving item:', error);
       throw error;
-    } finally {
-      client.release();
     }
+  }
+
+  // Helper method to get item with tags and assigned users
+  private static async getItemWithRelations(db: D1Database, itemRow: any): Promise<Item> {
+    const item = this.mapToItem(itemRow);
+    
+    // Get tags for this item
+    const tagsStmt = db.prepare(`
+      SELECT t.id, t.name, t.color, t.created_at, t.updated_at
+      FROM tags t
+      INNER JOIN item_tags it ON t.id = it.tag_id
+      WHERE it.item_id = ?
+    `);
+    const tagsResult = await tagsStmt.bind(item.id).all();
+    
+    // Get assigned users for this item
+    const usersStmt = db.prepare(`
+      SELECT u.id, u.email, u.firebase_uid, u.name, u.role, u.created_at, u.updated_at
+      FROM users u
+      INNER JOIN item_users iu ON u.id = iu.user_id
+      WHERE iu.item_id = ?
+    `);
+    const usersResult = await usersStmt.bind(item.id).all();
+    
+    return {
+      ...item,
+      tags: tagsResult.results.map(row => this.mapToTag(row)),
+      assigned_users: usersResult.results.map(row => this.mapToUser(row))
+    };
+  }
+
+  // Helper method to map D1 result to Item type
+  private static mapToItem(row: any): Item {
+    return {
+      id: row.id,
+      column_id: row.column_id,
+      title: row.title,
+      description: row.description,
+      position: row.position,
+      start_date: row.start_date ? new Date(row.start_date) : undefined,
+      end_date: row.end_date ? new Date(row.end_date) : undefined,
+      effort: row.effort,
+      label: row.label,
+      priority: row.priority,
+      archived: Boolean(row.archived),
+      created_at: new Date(row.created_at),
+      updated_at: new Date(row.updated_at)
+    };
+  }
+
+  // Helper method to map D1 result to Tag type
+  private static mapToTag(row: any) {
+    return {
+      id: row.id,
+      name: row.name,
+      color: row.color,
+      created_at: new Date(row.created_at),
+      updated_at: new Date(row.updated_at)
+    };
+  }
+
+  // Helper method to map D1 result to User type
+  private static mapToUser(row: any) {
+    return {
+      id: row.id,
+      email: row.email,
+      firebase_uid: row.firebase_uid,
+      name: row.name,
+      role: row.role,
+      created_at: new Date(row.created_at),
+      updated_at: new Date(row.updated_at)
+    };
   }
 }

@@ -1,3 +1,11 @@
+import 'hono';
+
+declare module 'hono' {
+  interface ContextVariableMap {
+    user: User;
+  }
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -18,45 +26,20 @@ export interface UpdateTaskRequest {
   description?: string;
   completed?: boolean;
 }
-
-export interface HealthResponse {
-  status: string;
-  database: string;
-  timestamp: string;
-}
-
-// User types
 export interface User {
   id: number;
   email: string;
-  password_hash: string;
+  firebase_uid?: string;
   name?: string;
   role: 'user' | 'admin' | 'superadmin';
   created_at: Date;
   updated_at: Date;
 }
 
-export interface CreateUserRequest {
-  email: string;
-  password: string;
-  name?: string;
-}
-
 export interface UpdateUserRequest {
   name?: string;
   email?: string;
   role?: 'user' | 'admin' | 'superadmin';
-}
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  user: Omit<User, 'password_hash'>;
-  token: string;
-  refreshToken: string;
 }
 
 // New types for boards feature

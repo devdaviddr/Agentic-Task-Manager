@@ -21,31 +21,6 @@ const app = new Hono();
 // Environment-aware CORS configuration
 const corsOrigins = getCorsOrigins();
 
-// Rate limiting - strict limits for auth endpoints
-app.use('/auth/login', rateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 5, // Only 5 login attempts per 15 minutes
-  standardHeaders: true,
-  keyGenerator: (c) => {
-    return c.req.header('CF-Connecting-IP') ||
-           c.req.header('X-Forwarded-For') ||
-           c.req.header('X-Real-IP') ||
-           'unknown';
-  },
-}));
-
-app.use('/auth/register', rateLimiter({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  limit: 3, // Only 3 registration attempts per hour
-  standardHeaders: true,
-  keyGenerator: (c) => {
-    return c.req.header('CF-Connecting-IP') ||
-           c.req.header('X-Forwarded-For') ||
-           c.req.header('X-Real-IP') ||
-           'unknown';
-  },
-}));
-
 // Global rate limiting
 app.use('*', rateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -210,15 +185,6 @@ async function startServer() {
     console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
     gracefulShutdown('unhandledRejection');
   });
-
-  // Start token cleanup interval (run every hour)
-  setInterval(async () => {
-    try {
-      await AuthService.cleanupExpiredTokens();
-    } catch (error) {
-      console.error('Error during token cleanup:', error);
-    }
-  }, 60 * 60 * 1000); // 1 hour
 
   return server;
 }

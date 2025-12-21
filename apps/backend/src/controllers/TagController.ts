@@ -5,7 +5,12 @@ import type { CreateTagRequest } from '../types';
 export class TagController {
   static async getAll(c: Context) {
     try {
-      const tags = await TagService.getAllTags();
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
+      
+      const tags = await TagService.getAllTags(db);
       return c.json(tags);
     } catch (error) {
       console.error('Controller error - getAll tags:', error);
@@ -20,7 +25,12 @@ export class TagController {
         return c.json({ error: 'Invalid tag ID' }, 400);
       }
 
-      const tag = await TagService.getTagById(id);
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
+
+      const tag = await TagService.getTagById(db, id);
       return c.json(tag);
     } catch (error) {
       console.error('Controller error - get tag:', error);
@@ -35,7 +45,12 @@ export class TagController {
     try {
       const body: CreateTagRequest = await c.req.json();
 
-      const tag = await TagService.createTag(body);
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
+
+      const tag = await TagService.createTag(db, body);
       return c.json(tag, 201);
     } catch (error) {
       console.error('Controller error - create tag:', error);
@@ -58,7 +73,12 @@ export class TagController {
 
       const body: Partial<CreateTagRequest> = await c.req.json();
 
-      const tag = await TagService.updateTag(id, body);
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
+
+      const tag = await TagService.updateTag(db, id, body);
       return c.json(tag);
     } catch (error) {
       console.error('Controller error - update tag:', error);
@@ -77,7 +97,12 @@ export class TagController {
         return c.json({ error: 'Invalid tag ID' }, 400);
       }
 
-      await TagService.deleteTag(id);
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
+
+      await TagService.deleteTag(db, id);
       return c.json({ message: 'Tag deleted successfully' });
     } catch (error) {
       console.error('Controller error - delete tag:', error);

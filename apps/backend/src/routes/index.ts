@@ -13,9 +13,19 @@ const router = new Hono();
 // Health check route
 router.get('/health', async (c) => {
   try {
-    // Import pool dynamically to avoid circular dependency
-    const { pool } = await import('../config/database');
-    await pool.query('SELECT 1');
+    // Check D1 database connection
+    const db = (c.env as any)?.DB;
+    if (!db) {
+      return c.json({
+        status: 'error',
+        database: 'disconnected',
+        error: 'Database not available',
+        timestamp: new Date().toISOString()
+      }, 500);
+    }
+    
+    // Simple test query
+    await db.prepare('SELECT 1').first();
     return c.json({
       status: 'ok',
       database: 'connected',

@@ -1,11 +1,5 @@
 // Mock environment variables for tests BEFORE importing anything else
 // Only set if not already set by vitest-setup.ts
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://postgres:password@localhost:5432/taskmanager_test';
-}
-if (!process.env.JWT_SECRET) {
-  process.env.JWT_SECRET = 'test-jwt-secret';
-}
 if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = 'test';
 }
@@ -13,11 +7,10 @@ if (!process.env.DISABLE_RATE_LIMITING) {
   process.env.DISABLE_RATE_LIMITING = 'true'; // Disable rate limiting in tests
 }
 
-import { testPool } from './setup';
 import app from '../app';
 
 // Export test utilities
-export { testPool, teardownTestDatabase, testConnection } from './setup';
+export { teardownTestDatabase, testConnection } from './setup';
 
 // Helper to create mock request
 export const createMockRequest = (method: string, url: string, body?: any, headers?: Record<string, string>) => {

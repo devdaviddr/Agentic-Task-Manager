@@ -1,28 +1,29 @@
+import type { D1Database } from '@cloudflare/workers-types';
 import { TaskModel } from '../models/Task';
 import type { Task, CreateTaskRequest, UpdateTaskRequest } from '../types';
 
 export class TaskService {
-  static async getAllTasks(): Promise<Task[]> {
+  static async getAllTasks(db: D1Database): Promise<Task[]> {
     try {
-      return await TaskModel.findAll();
+      return await TaskModel.findAll(db);
     } catch (error) {
       console.error('Service error - getAllTasks:', error);
       throw new Error('Failed to retrieve tasks');
     }
   }
 
-  static async getAllTasksByUser(userId: number): Promise<Task[]> {
+  static async getAllTasksByUser(db: D1Database, userId: number): Promise<Task[]> {
     try {
-      return await TaskModel.findByUserId(userId);
+      return await TaskModel.findByUserId(db, userId);
     } catch (error) {
       console.error('Service error - getAllTasksByUser:', error);
       throw new Error('Failed to retrieve user tasks');
     }
   }
 
-  static async getTaskById(id: number): Promise<Task> {
+  static async getTaskById(db: D1Database, id: number): Promise<Task> {
     try {
-      const task = await TaskModel.findById(id);
+      const task = await TaskModel.findById(db, id);
       if (!task) {
         throw new Error('Task not found');
       }
@@ -36,12 +37,12 @@ export class TaskService {
     }
   }
 
-  static async createTask(taskData: CreateTaskRequest, userId: number): Promise<Task> {
+  static async createTask(db: D1Database, taskData: CreateTaskRequest, userId: number): Promise<Task> {
     try {
       // Business logic validation
       this.validateCreateTaskData(taskData);
 
-      return await TaskModel.create({ ...taskData, user_id: userId });
+      return await TaskModel.create(db, { ...taskData, user_id: userId });
     } catch (error) {
       console.error('Service error - createTask:', error);
        if (error instanceof Error && error.message.toLowerCase().includes('validation')) {
@@ -51,12 +52,12 @@ export class TaskService {
     }
   }
 
-  static async updateTask(id: number, taskData: UpdateTaskRequest): Promise<Task> {
+  static async updateTask(db: D1Database, id: number, taskData: UpdateTaskRequest): Promise<Task> {
     try {
       // Business logic validation
       this.validateUpdateTaskData(taskData);
 
-      const task = await TaskModel.update(id, taskData);
+      const task = await TaskModel.update(db, id, taskData);
       if (!task) {
         throw new Error('Task not found or no changes made');
       }
@@ -70,9 +71,9 @@ export class TaskService {
     }
   }
 
-  static async deleteTask(id: number): Promise<void> {
+  static async deleteTask(db: D1Database, id: number): Promise<void> {
     try {
-      const deleted = await TaskModel.delete(id);
+      const deleted = await TaskModel.delete(db, id);
       if (!deleted) {
         throw new Error('Task not found');
       }

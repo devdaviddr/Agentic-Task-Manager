@@ -1,19 +1,20 @@
+import type { D1Database } from '@cloudflare/workers-types';
 import { TagModel } from '../models/Tag';
 import type { Tag, CreateTagRequest } from '../types';
 
 export class TagService {
-  static async getAllTags(): Promise<Tag[]> {
+  static async getAllTags(db: D1Database): Promise<Tag[]> {
     try {
-      return await TagModel.findAll();
+      return await TagModel.findAll(db);
     } catch (error) {
       console.error('Service error - getAllTags:', error);
       throw new Error('Failed to retrieve tags');
     }
   }
 
-  static async getTagById(id: number): Promise<Tag> {
+  static async getTagById(db: D1Database, id: number): Promise<Tag> {
     try {
-      const tag = await TagModel.findById(id);
+      const tag = await TagModel.findById(db, id);
       if (!tag) {
         throw new Error('Tag not found');
       }
@@ -27,18 +28,18 @@ export class TagService {
     }
   }
 
-  static async createTag(tagData: CreateTagRequest): Promise<Tag> {
+  static async createTag(db: D1Database, tagData: CreateTagRequest): Promise<Tag> {
     try {
       // Business logic validation
       this.validateCreateTagData(tagData);
 
       // Check if tag with this name already exists
-      const existingTag = await TagModel.findByName(tagData.name);
+      const existingTag = await TagModel.findByName(db, tagData.name);
       if (existingTag) {
         throw new Error('Tag with this name already exists');
       }
 
-      return await TagModel.create(tagData);
+      return await TagModel.create(db, tagData);
     } catch (error) {
       console.error('Service error - createTag:', error);
        if (error instanceof Error && (error.message.toLowerCase().includes('validation') || error.message === 'Tag with this name already exists')) {
@@ -48,20 +49,20 @@ export class TagService {
     }
   }
 
-  static async updateTag(id: number, tagData: Partial<CreateTagRequest>): Promise<Tag> {
+  static async updateTag(db: D1Database, id: number, tagData: Partial<CreateTagRequest>): Promise<Tag> {
     try {
       // Business logic validation
       this.validateUpdateTagData(tagData);
 
       // Check if another tag with this name already exists (excluding current tag)
       if (tagData.name) {
-        const existingTag = await TagModel.findByName(tagData.name);
+        const existingTag = await TagModel.findByName(db, tagData.name);
         if (existingTag && existingTag.id !== id) {
           throw new Error('Tag with this name already exists');
         }
       }
 
-      const tag = await TagModel.update(id, tagData);
+      const tag = await TagModel.update(db, id, tagData);
       if (!tag) {
         throw new Error('Tag not found or no changes made');
       }
@@ -75,9 +76,9 @@ export class TagService {
     }
   }
 
-  static async deleteTag(id: number): Promise<void> {
+  static async deleteTag(db: D1Database, id: number): Promise<void> {
     try {
-      const deleted = await TagModel.delete(id);
+      const deleted = await TagModel.delete(db, id);
       if (!deleted) {
         throw new Error('Tag not found');
       }
@@ -90,24 +91,24 @@ export class TagService {
     }
   }
 
-  static async getTagsByItemId(itemId: number): Promise<Tag[]> {
+  static async getTagsByItemId(db: D1Database, itemId: number): Promise<Tag[]> {
     try {
-      return await TagModel.findByItemId(itemId);
+      return await TagModel.findByItemId(db, itemId);
     } catch (error) {
       console.error('Service error - getTagsByItemId:', error);
       throw new Error('Failed to retrieve item tags');
     }
   }
 
-  static async assignTagToItem(itemId: number, tagId: number): Promise<void> {
+  static async assignTagToItem(db: D1Database, itemId: number, tagId: number): Promise<void> {
     try {
       // Verify tag exists
-      const tag = await TagModel.findById(tagId);
+      const tag = await TagModel.findById(db, tagId);
       if (!tag) {
         throw new Error('Tag not found');
       }
 
-      await TagModel.assignToItem(itemId, tagId);
+      await TagModel.assignToItem(db, itemId, tagId);
     } catch (error) {
       console.error('Service error - assignTagToItem:', error);
       if (error instanceof Error && error.message === 'Tag not found') {
@@ -117,20 +118,20 @@ export class TagService {
     }
   }
 
-  static async removeTagFromItem(itemId: number, tagId: number): Promise<void> {
+  static async removeTagFromItem(db: D1Database, itemId: number, tagId: number): Promise<void> {
     try {
-      await TagModel.removeFromItem(itemId, tagId);
+      await TagModel.removeFromItem(db, itemId, tagId);
     } catch (error) {
       console.error('Service error - removeTagFromItem:', error);
       throw new Error('Failed to remove tag from item');
     }
   }
 
-  static async setItemTags(itemId: number, tagIds: number[]): Promise<void> {
+  static async setItemTags(db: D1Database, itemId: number, tagIds: number[]): Promise<void> {
     try {
       // Validate that all tag IDs exist
       if (tagIds.length > 0) {
-        const existingTags = await TagModel.findAll();
+        const existingTags = await TagModel.findAll(db);
         const existingTagIds = existingTags.map(tag => tag.id);
         const invalidTagIds = tagIds.filter(id => !existingTagIds.includes(id));
 
@@ -139,7 +140,7 @@ export class TagService {
         }
       }
 
-      await TagModel.setItemTags(itemId, tagIds);
+      await TagModel.setItemTags(db, itemId, tagIds);
     } catch (error) {
       console.error('Service error - setItemTags:', error);
       if (error instanceof Error && error.message.includes('Invalid tag IDs')) {

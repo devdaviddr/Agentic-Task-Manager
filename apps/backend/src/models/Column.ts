@@ -1,125 +1,144 @@
-import { pool } from '../config/database';
+import type { D1Database } from '@cloudflare/workers-types';
 import type { Column, CreateColumnRequest } from '../types';
 
 export class ColumnModel {
-  static async findByBoardId(boardId: number): Promise<Column[]> {
-    const result = await pool.query(`
+  static async findByBoardId(db: D1Database, boardId: number): Promise<Column[]> {
+    const stmt = db.prepare(`
       SELECT id, board_id, name, position, created_at, updated_at
       FROM columns
-      WHERE board_id = $1
+      WHERE board_id = ?
       ORDER BY position
-    `, [boardId]);
-    return result.rows;
+    `);
+    const result = await stmt.bind(boardId).all();
+    return result.results.map(row => this.mapToColumn(row));
   }
 
-  static async findById(id: number): Promise<Column | null> {
-    const result = await pool.query(`
+  static async findById(db: D1Database, id: number): Promise<Column | null> {
+    const stmt = db.prepare(`
       SELECT id, board_id, name, position, created_at, updated_at
       FROM columns
-      WHERE id = $1
-    `, [id]);
-    return result.rows[0] || null;
+      WHERE id = ?
+    `);
+    const result = await stmt.bind(id).first();
+    return result ? this.mapToColumn(result) : null;
   }
 
-  static async create(boardId: number, columnData: CreateColumnRequest): Promise<Column> {
+  static async create(db: D1Database, boardId: number, columnData: CreateColumnRequest): Promise<Column> {
     // Get the highest position for this board
-    const positionResult = await pool.query(`
+    const positionStmt = db.prepare(`
       SELECT COALESCE(MAX(position), -1) + 1 as next_position
       FROM columns
-      WHERE board_id = $1
-    `, [boardId]);
+      WHERE board_id = ?
+    `);
+    const positionResult = await positionStmt.bind(boardId).first();
+    const position = columnData.position ?? positionResult?.next_position ?? 0;
 
-    const position = columnData.position ?? positionResult.rows[0].next_position;
-
-    const result = await pool.query(`
+    const stmt = db.prepare(`
       INSERT INTO columns (board_id, name, position, created_at, updated_at)
-      VALUES ($1, $2, $3, NOW(), NOW())
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING id, board_id, name, position, created_at, updated_at
-    `, [boardId, columnData.name, position]);
-    return result.rows[0];
+    `);
+    const result = await stmt.bind(boardId, columnData.name, position).first();
+    
+    if (!result) {
+      throw new Error('Failed to create column');
+    }
+    
+    return this.mapToColumn(result);
   }
 
-  static async update(id: number, columnData: Partial<CreateColumnRequest>): Promise<Column | null> {
+  static async update(db: D1Database, id: number, columnData: Partial<CreateColumnRequest>): Promise<Column | null> {
     const fields = [];
     const values = [];
-    let paramCount = 1;
 
     if (columnData.name !== undefined) {
-      fields.push(`name = $${paramCount}`);
+      fields.push('name = ?');
       values.push(columnData.name);
-      paramCount++;
     }
 
     if (columnData.position !== undefined) {
-      fields.push(`position = $${paramCount}`);
+      fields.push('position = ?');
       values.push(columnData.position);
-      paramCount++;
     }
 
     if (fields.length === 0) {
       return null;
     }
 
-    fields.push(`updated_at = NOW()`);
+    fields.push('updated_at = CURRENT_TIMESTAMP');
     values.push(id);
 
-    const result = await pool.query(`
+    const stmt = db.prepare(`
       UPDATE columns
       SET ${fields.join(', ')}
-      WHERE id = $${paramCount}
+      WHERE id = ?
       RETURNING id, board_id, name, position, created_at, updated_at
-    `, values);
-
-    return result.rows[0] || null;
+    `);
+    
+    const result = await stmt.bind(...values).first();
+    return result ? this.mapToColumn(result) : null;
   }
 
-  static async delete(id: number): Promise<boolean> {
-    const result = await pool.query('DELETE FROM columns WHERE id = $1', [id]);
-    return (result.rowCount ?? 0) > 0;
+  static async delete(db: D1Database, id: number): Promise<boolean> {
+    const stmt = db.prepare('DELETE FROM columns WHERE id = ?');
+    const result = await stmt.bind(id).run();
+    return result.success && result.meta.changes > 0;
   }
 
-  static async moveColumn(id: number, newPosition: number): Promise<Column | null> {
+  static async moveColumn(db: D1Database, id: number, newPosition: number): Promise<Column | null> {
     // Get current column info
-    const currentColumn = await this.findById(id);
+    const currentColumn = await this.findById(db, id);
     if (!currentColumn) return null;
 
-    const client = await pool.connect();
-
+    // D1 doesn't support transactions, so we'll do our best with individual operations
+    // This could potentially cause race conditions in high-concurrency scenarios
+    
     try {
-      await client.query('BEGIN');
-
       // Shift other columns
       if (newPosition > currentColumn.position) {
         // Moving down: shift items between old and new position up
-        await client.query(`
+        const stmt1 = db.prepare(`
           UPDATE columns
-          SET position = position - 1
-          WHERE board_id = $1 AND position > $2 AND position <= $3
-        `, [currentColumn.board_id, currentColumn.position, newPosition]);
+          SET position = position - 1, updated_at = CURRENT_TIMESTAMP
+          WHERE board_id = ? AND position > ? AND position <= ?
+        `);
+        await stmt1.bind(currentColumn.board_id, currentColumn.position, newPosition).run();
       } else {
         // Moving up: shift items between new and old position down
-        await client.query(`
+        const stmt2 = db.prepare(`
           UPDATE columns
-          SET position = position + 1
-          WHERE board_id = $1 AND position >= $2 AND position < $3
-        `, [currentColumn.board_id, newPosition, currentColumn.position]);
+          SET position = position + 1, updated_at = CURRENT_TIMESTAMP
+          WHERE board_id = ? AND position >= ? AND position < ?
+        `);
+        await stmt2.bind(currentColumn.board_id, newPosition, currentColumn.position).run();
       }
 
       // Update the column position
-      const result = await client.query(`
+      const stmt3 = db.prepare(`
         UPDATE columns
-        SET position = $1, updated_at = NOW()
-        WHERE id = $2
+        SET position = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
         RETURNING id, board_id, name, position, created_at, updated_at
-      `, [newPosition, id]);
-
-      await client.query('COMMIT');
-      return result.rows[0];
+      `);
+      const result = await stmt3.bind(newPosition, id).first();
+      
+      return result ? this.mapToColumn(result) : null;
     } catch (error) {
-      await client.query('ROLLBACK');
+      // In case of error, we can't rollback in D1
+      console.error('Error moving column:', error);
       throw error;
-    } finally {
-      client.release();
     }
+  }
+
+  // Helper method to map D1 result to Column type
+  private static mapToColumn(row: any): Column {
+    return {
+      id: row.id,
+      board_id: row.board_id,
+      name: row.name,
+      position: row.position,
+      created_at: new Date(row.created_at),
+      updated_at: new Date(row.updated_at)
+    };
   }
 }

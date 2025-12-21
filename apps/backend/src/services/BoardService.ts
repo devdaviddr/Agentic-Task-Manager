@@ -1,19 +1,20 @@
+import type { D1Database } from '@cloudflare/workers-types';
 import { BoardModel } from '../models/Board';
 import type { Board, CreateBoardRequest, UpdateBoardRequest, BoardWithColumns } from '../types';
 
 export class BoardService {
-  static async getAllBoards(userId: number = 1): Promise<Board[]> {
+  static async getAllBoards(db: D1Database, userId: number = 1): Promise<Board[]> {
     try {
-      return await BoardModel.findAll(userId);
+      return await BoardModel.findAll(db, userId);
     } catch (error) {
       console.error('Service error - getAllBoards:', error);
       throw new Error('Failed to retrieve boards');
     }
   }
 
-  static async getBoardById(id: number): Promise<Board> {
+  static async getBoardById(db: D1Database, id: number): Promise<Board> {
     try {
-      const board = await BoardModel.findById(id);
+      const board = await BoardModel.findById(db, id);
       if (!board) {
         throw new Error('Board not found');
       }
@@ -27,9 +28,9 @@ export class BoardService {
     }
   }
 
-  static async getBoardWithColumns(id: number): Promise<BoardWithColumns> {
+  static async getBoardWithColumns(db: D1Database, id: number): Promise<BoardWithColumns> {
     try {
-      const board = await BoardModel.findByIdWithColumns(id);
+      const board = await BoardModel.findByIdWithColumns(db, id);
       if (!board) {
         throw new Error('Board not found');
       }
@@ -43,12 +44,12 @@ export class BoardService {
     }
   }
 
-  static async createBoard(boardData: CreateBoardRequest, userId: number): Promise<Board> {
+  static async createBoard(db: D1Database, boardData: CreateBoardRequest, userId: number): Promise<Board> {
     try {
       // Business logic validation
       this.validateCreateBoardData(boardData);
 
-      return await BoardModel.create(boardData, userId);
+      return await BoardModel.create(db, boardData, userId);
     } catch (error) {
       console.error('Service error - createBoard:', error);
       if (error instanceof Error && error.message.toLowerCase().includes('validation')) {
@@ -58,12 +59,12 @@ export class BoardService {
     }
   }
 
-  static async updateBoard(id: number, boardData: Partial<UpdateBoardRequest>): Promise<Board> {
+  static async updateBoard(db: D1Database, id: number, boardData: Partial<UpdateBoardRequest>): Promise<Board> {
     try {
       // Business logic validation
       this.validateUpdateBoardData(boardData);
 
-      const board = await BoardModel.update(id, boardData);
+      const board = await BoardModel.update(db, id, boardData);
       if (!board) {
         throw new Error('Board not found or no changes made');
       }
@@ -77,9 +78,9 @@ export class BoardService {
     }
   }
 
-  static async deleteBoard(id: number): Promise<void> {
+  static async deleteBoard(db: D1Database, id: number): Promise<void> {
     try {
-      const deleted = await BoardModel.delete(id);
+      const deleted = await BoardModel.delete(db, id);
       if (!deleted) {
         throw new Error('Board not found');
       }

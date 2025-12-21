@@ -1,19 +1,20 @@
+import type { D1Database } from '@cloudflare/workers-types';
 import { ItemModel } from '../models/Item';
 import type { Item, CreateItemRequest, MoveItemRequest } from '../types';
 
 export class ItemService {
-  static async getItemsByColumn(columnId: number): Promise<Item[]> {
+  static async getItemsByColumn(db: D1Database, columnId: number): Promise<Item[]> {
     try {
-      return await ItemModel.findByColumnId(columnId);
+      return await ItemModel.findByColumnId(db, columnId);
     } catch (error) {
       console.error('Service error - getItemsByColumn:', error);
       throw new Error('Failed to retrieve items');
     }
   }
 
-  static async getItemById(id: number): Promise<Item> {
+  static async getItemById(db: D1Database, id: number): Promise<Item> {
     try {
-      const item = await ItemModel.findById(id);
+      const item = await ItemModel.findById(db, id);
       if (!item) {
         throw new Error('Item not found');
       }
@@ -27,12 +28,12 @@ export class ItemService {
     }
   }
 
-  static async createItem(columnId: number, itemData: CreateItemRequest): Promise<Item> {
+  static async createItem(db: D1Database, columnId: number, itemData: CreateItemRequest): Promise<Item> {
     try {
       // Business logic validation
       this.validateCreateItemData(itemData);
 
-      return await ItemModel.create(columnId, itemData);
+      return await ItemModel.create(db, columnId, itemData);
     } catch (error) {
       console.error('Service error - createItem:', error);
       if (error instanceof Error && error.message.toLowerCase().includes('validation')) {
@@ -46,12 +47,12 @@ export class ItemService {
     }
   }
 
-  static async updateItem(id: number, itemData: Partial<CreateItemRequest>): Promise<Item> {
+  static async updateItem(db: D1Database, id: number, itemData: Partial<CreateItemRequest>): Promise<Item> {
     try {
       // Business logic validation
       this.validateUpdateItemData(itemData);
 
-      const item = await ItemModel.update(id, itemData);
+      const item = await ItemModel.update(db, id, itemData);
       if (!item) {
         throw new Error('Item not found or no changes made');
       }
@@ -65,12 +66,12 @@ export class ItemService {
     }
   }
 
-  static async moveItem(id: number, moveData: MoveItemRequest): Promise<Item> {
+  static async moveItem(db: D1Database, id: number, moveData: MoveItemRequest): Promise<Item> {
     try {
       // Business logic validation
       this.validateMoveItemData(moveData);
 
-      const item = await ItemModel.move(id, moveData);
+      const item = await ItemModel.move(db, id, moveData);
       if (!item) {
         throw new Error('Item not found');
       }
@@ -84,9 +85,9 @@ export class ItemService {
     }
   }
 
-  static async deleteItem(id: number): Promise<void> {
+  static async deleteItem(db: D1Database, id: number): Promise<void> {
     try {
-      const deleted = await ItemModel.delete(id);
+      const deleted = await ItemModel.delete(db, id);
       if (!deleted) {
         throw new Error('Item not found');
       }
@@ -99,9 +100,9 @@ export class ItemService {
     }
   }
 
-  static async archiveItem(id: number, archived: boolean = true): Promise<Item> {
+  static async archiveItem(db: D1Database, id: number, archived: boolean = true): Promise<Item> {
     try {
-      const item = await ItemModel.archive(id, archived);
+      const item = await ItemModel.archive(db, id, archived);
       if (!item) {
         throw new Error('Item not found');
       }
@@ -115,18 +116,18 @@ export class ItemService {
     }
   }
 
-  static async assignUserToItem(itemId: number, userId: number): Promise<boolean> {
+  static async assignUserToItem(db: D1Database, itemId: number, userId: number): Promise<boolean> {
     try {
-      return await ItemModel.assignUser(itemId, userId);
+      return await ItemModel.assignUser(db, itemId, userId);
     } catch (error) {
       console.error('Service error - assignUserToItem:', error);
       throw new Error('Failed to assign user to item');
     }
   }
 
-  static async removeUserFromItem(itemId: number, userId: number): Promise<boolean> {
+  static async removeUserFromItem(db: D1Database, itemId: number, userId: number): Promise<boolean> {
     try {
-      return await ItemModel.removeUser(itemId, userId);
+      return await ItemModel.removeUser(db, itemId, userId);
     } catch (error) {
       console.error('Service error - removeUserFromItem:', error);
       throw new Error('Failed to remove user from item');

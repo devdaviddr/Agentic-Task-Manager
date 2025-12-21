@@ -7,7 +7,11 @@ export class BoardController {
   static async getAll(c: Context) {
     try {
       const user = c.get('user');
-      const boards = await BoardService.getAllBoards(user.id);
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
+      const boards = await BoardService.getAllBoards(db, user.id);
       return c.json(boards);
     } catch (error) {
       console.error('Controller error - getAll boards:', error);
@@ -23,10 +27,14 @@ export class BoardController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board access (owner or assigned to tasks)
       try {
-        await checkBoardAccess(id, user.id);
+        await checkBoardAccess(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Board not found') {
@@ -39,7 +47,7 @@ export class BoardController {
         throw error;
       }
 
-      const board = await BoardService.getBoardById(id);
+      const board = await BoardService.getBoardById(db, id);
       return c.json(board);
     } catch (error) {
       console.error('Controller error - getById board:', error);
@@ -58,10 +66,14 @@ export class BoardController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board access (owner or assigned to tasks)
       try {
-        await checkBoardAccess(id, user.id);
+        await checkBoardAccess(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Board not found') {
@@ -74,7 +86,7 @@ export class BoardController {
         throw error;
       }
 
-      const board = await BoardService.getBoardWithColumns(id);
+      const board = await BoardService.getBoardWithColumns(db, id);
       return c.json(board);
     } catch (error) {
       console.error('Controller error - getWithColumns board:', error);
@@ -88,9 +100,13 @@ export class BoardController {
   static async create(c: Context) {
     try {
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       const body: CreateBoardRequest = await c.req.json();
 
-      const board = await BoardService.createBoard(body, user.id);
+      const board = await BoardService.createBoard(db, body, user.id);
       return c.json(board, 201);
     } catch (error) {
       console.error('Controller error - create board:', error);
@@ -109,10 +125,14 @@ export class BoardController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership
       try {
-        await checkBoardOwnership(id, user.id);
+        await checkBoardOwnership(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Board not found') {
@@ -126,7 +146,7 @@ export class BoardController {
       }
 
       const body: Partial<UpdateBoardRequest> = await c.req.json();
-      const board = await BoardService.updateBoard(id, body);
+      const board = await BoardService.updateBoard(db, id, body);
 
       return c.json(board);
     } catch (error) {
@@ -146,10 +166,14 @@ export class BoardController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership
       try {
-        await checkBoardOwnership(id, user.id);
+        await checkBoardOwnership(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Board not found') {
@@ -162,7 +186,7 @@ export class BoardController {
         throw error;
       }
 
-      await BoardService.deleteBoard(id);
+      await BoardService.deleteBoard(db, id);
       return c.json({ message: 'Board deleted successfully' });
     } catch (error) {
       console.error('Controller error - delete board:', error);

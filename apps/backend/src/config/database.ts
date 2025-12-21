@@ -1,22 +1,26 @@
-import { Pool } from 'pg';
+// Database configuration for Cloudflare D1
+import type { D1Database } from '@cloudflare/workers-types';
 
-export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: 10,  // Reduced from 20 to optimize resource usage
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+export interface Env {
+  DB: D1Database;
+  NODE_ENV?: string;
+  FIREBASE_PROJECT_ID?: string;
+  FIREBASE_PRIVATE_KEY?: string;
+  FIREBASE_CLIENT_EMAIL?: string;
+  FIREBASE_SERVICE_ACCOUNT_PATH?: string;
+}
 
-export const testConnection = async (): Promise<void> => {
+// Get database instance from context
+export function getDatabase(env: Env): D1Database {
+  return env.DB;
+}
+
+export const testConnection = async (db: D1Database): Promise<void> => {
   try {
-    await pool.query('SELECT 1');
-    console.log('✅ Successfully connected to PostgreSQL');
+    await db.exec('SELECT 1');
+    console.log('✅ Successfully connected to D1 database');
   } catch (error) {
-    console.error('❌ Failed to connect to PostgreSQL:', (error as Error).message);
+    console.error('❌ Failed to connect to D1 database:', (error as Error).message);
     throw error;
   }
-};
-
-export const closeConnection = async (): Promise<void> => {
-  await pool.end();
 };

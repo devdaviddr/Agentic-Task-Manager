@@ -1,28 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import type { ReactNode } from 'react';
-import type { AxiosRequestConfig } from 'axios';
-import api, { setRefreshTokenFunction } from '../services/api';
-
-interface User {
-  id: number;
-  email: string;
-  name?: string;
-  role: 'user' | 'admin' | 'superadmin';
-}
-
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name?: string) => Promise<void>;
-  logout: () => Promise<void>;
-  setUser: (user: User) => void;
-  loading: boolean;
-  refreshing: boolean;
-  refreshToken: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode, FC } from 'react';
+import {
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+} from 'firebase/auth';
+import type { User as FirebaseUser } from 'firebase/auth';
+import { auth as firebaseAuth, googleProvider } from '../config/firebase';
+import api from '../services/api';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
@@ -37,156 +22,66 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider: FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const refreshPromiseRef = useRef<Promise<void> | null>(null);
-  const requestQueueRef = useRef<Array<{resolve: (value: unknown) => void, reject: (reason: unknown) => void, config: AxiosRequestConfig}>>([]);
-  const tokenExpiryRef = useRef<number | null>(null);
-  const refreshTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    checkAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Listen to Firebase auth state changes
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
+      setFirebaseUser(firebaseUser);
 
-  // Set the refresh function for the API service
-  useEffect(() => {
-    setRefreshTokenFunction(refreshToken);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      if (firebaseUser) {
+        try {
+          // Sync user with backend
+          const response = await api.post('/auth/sync');
+          setUser(response.data.user);
+        } catch (error) {
+          console.error('Failed to sync user with backend:', error);
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
 
-  const checkAuth = async () => {
-    try {
-      const response = await api.get('/auth/me');
-      setUser(response.data.user);
-      // Set token expiry and schedule refresh on successful auth check
-      tokenExpiryRef.current = Date.now() + (60 * 60 * 1000); // 1 hour from now
-      scheduleRefresh();
-    } catch {
-      // If auth check fails, user is not authenticated
-      setUser(null);
-      tokenExpiryRef.current = null;
-      clearRefreshTimer();
-    } finally {
-      // Always set loading to false, even on error
       setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const loginWithGoogle = async () => {
+    try {
+      setLoading(true);
+      await signInWithPopup(firebaseAuth, googleProvider);
+      // onAuthStateChanged will handle the rest
+    } catch (error) {
+      console.error('Google sign-in failed:', error);
+      setLoading(false);
+      throw error;
     }
-  };
-
-  const login = async (email: string, password: string) => {
-    const response = await api.post('/auth/login', { email, password });
-    setUser(response.data.user);
-    // Set token expiry and schedule refresh on login
-    tokenExpiryRef.current = Date.now() + (60 * 60 * 1000); // 1 hour from now
-    scheduleRefresh();
-  };
-
-  const register = async (email: string, password: string, name?: string) => {
-    const response = await api.post('/auth/register', { email, password, name });
-    setUser(response.data.user);
-    // Set token expiry and schedule refresh on register
-    tokenExpiryRef.current = Date.now() + (60 * 60 * 1000); // 1 hour from now
-    scheduleRefresh();
   };
 
   const logout = async () => {
     try {
-      await api.post('/auth/logout');
-    } catch (error) {
-      // Ignore logout errors - user is being logged out anyway
-      console.warn('Logout API call failed:', error);
-    } finally {
+      await firebaseSignOut(firebaseAuth);
       setUser(null);
-      tokenExpiryRef.current = null;
-      clearRefreshTimer();
-      refreshPromiseRef.current = null;
-      requestQueueRef.current = [];
+      setFirebaseUser(null);
+    } catch (error) {
+      console.error('Logout failed:', error);
+      throw error;
     }
   };
-
-  const refreshToken = useCallback(async (): Promise<void> => {
-    if (refreshPromiseRef.current) {
-      // If refresh is already in progress, wait for it
-      return refreshPromiseRef.current;
-    }
-
-    if (!user) {
-      throw new Error('No user to refresh token for');
-    }
-
-    setRefreshing(true);
-    refreshPromiseRef.current = (async () => {
-      try {
-        const response = await api.post('/auth/refresh');
-        setUser(response.data.user);
-        // Update token expiry (1 hour from now)
-        tokenExpiryRef.current = Date.now() + (60 * 60 * 1000);
-        scheduleRefresh();
-      } catch (error) {
-        console.error('Token refresh failed:', error);
-        // Clear auth state on refresh failure
-        setUser(null);
-        tokenExpiryRef.current = null;
-        clearRefreshTimer();
-        throw error;
-      } finally {
-        setRefreshing(false);
-        refreshPromiseRef.current = null;
-        // Process queued requests
-        processQueue();
-      }
-    })();
-
-    return refreshPromiseRef.current;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  const processQueue = () => {
-    const queue = requestQueueRef.current;
-    requestQueueRef.current = [];
-    
-    queue.forEach(({ resolve, reject, config }) => {
-      api.request(config).then((response) => resolve(response)).catch((error) => reject(error));
-    });
-  };
-
-  const scheduleRefresh = useCallback(() => {
-    clearRefreshTimer();
-    if (tokenExpiryRef.current) {
-      // Schedule refresh 5 minutes before expiry
-      const refreshTime = tokenExpiryRef.current - (5 * 60 * 1000) - Date.now();
-      if (refreshTime > 0) {
-        refreshTimerRef.current = window.setTimeout(() => {
-          refreshToken().catch(console.error);
-        }, refreshTime);
-      }
-    }
-  }, [refreshToken]);
-
-  const clearRefreshTimer = () => {
-    if (refreshTimerRef.current) {
-      clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = null;
-    }
-  };
-
-  // Set the refresh function for the API service
-  useEffect(() => {
-    setRefreshTokenFunction(refreshToken);
-  }, [refreshToken]);
 
   const value: AuthContextType = {
     user,
-    isAuthenticated: !!user,
-    login,
-    register,
+    firebaseUser,
+    isAuthenticated: !!user && !!firebaseUser,
+    loginWithGoogle,
     logout,
-    setUser,
     loading,
-    refreshing,
-    refreshToken,
+    setUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

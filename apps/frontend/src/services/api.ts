@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { auth } from '../config/firebase'
 
 // Types
 export interface User {
@@ -33,22 +34,19 @@ export interface Tag {
   updated_at: string;
 }
 
-// Global refresh function reference
-let refreshTokenFunction: (() => Promise<void>) | null = null;
-
-export const setRefreshTokenFunction = (fn: () => Promise<void>) => {
-  refreshTokenFunction = fn;
-};
-
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
-  withCredentials: true, // Enable sending cookies with requests
 })
 
-// Request interceptor - no longer needed for auth headers since we use cookies
+// Request interceptor - add Firebase ID token
 api.interceptors.request.use(
-  (config) => {
-    // Cookies are sent automatically by the browser
+  async (config) => {
+    const user = auth.currentUser;
+    if (user) {
+      // Get fresh Firebase ID token
+      const token = await user.getIdToken();
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -56,42 +54,34 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle 401 errors and token refresh
+// Response interceptor - handle auth errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      // Don't redirect on auth endpoints (me, login, register, refresh) as these are expected to fail when not authenticated
-      if (originalRequest.url?.includes('/auth/')) {
-        return Promise.reject(error);
-      }
-      
-      // If we have a refresh function, try to refresh the token
-      if (refreshTokenFunction) {
-        originalRequest._retry = true;
+    if (error.response?.status === 401) {
+      // Token expired or invalid - Firebase will handle refresh automatically
+      const user = auth.currentUser;
+      if (user) {
         try {
-          await refreshTokenFunction();
-          // Retry the original request
-          return api.request(originalRequest);
+          // Force token refresh
+          const token = await user.getIdToken(true);
+          error.config.headers.Authorization = `Bearer ${token}`;
+          // Retry request
+          return api.request(error.config);
         } catch (refreshError) {
-          console.error('Token refresh failed, redirecting to login:', refreshError);
-          // If refresh fails, redirect to login
+          console.error('Token refresh failed:', refreshError);
+          // Redirect to login
           if (typeof window !== 'undefined') {
             window.location.href = '/login';
           }
-          return Promise.reject(refreshError);
         }
       } else {
-        // No refresh function available, redirect to login
+        // No user, redirect to login
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
         }
-        return Promise.reject(error);
       }
     }
-
     return Promise.reject(error);
   }
 );

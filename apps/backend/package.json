@@ -2,10 +2,14 @@
   "name": "backend",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "wrangler dev",
+    "dev:local": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
-    "migrate": "tsx src/migrate.ts",
+    "start": "wrangler deploy",
+    "migrate": "tsx src/migrate-d1.ts",
+    "migrate:local": "npx wrangler d1 execute taskmanager --local --file=./src/schema/d1.sql",
+    "migrate:remote": "npx wrangler d1 execute taskmanager --file=./src/schema/d1.sql",
+    "db:create": "npx wrangler d1 create taskmanager",
     "test": "vitest --run",
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage"
@@ -14,23 +18,21 @@
     "@hono/node-server": "^1.19.5",
     "@hono/swagger-ui": "^0.5.2",
     "@hono/zod-openapi": "^1.1.4",
-    "@types/pg": "^8.15.5",
-    "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",
+    "firebase-admin": "^13.6.0",
     "hono": "^4.0.0",
     "hono-pino": "^0.10.3",
     "hono-rate-limiter": "^0.4.2",
-    "jsonwebtoken": "^9.0.2",
-    "pg": "^8.16.3",
     "pino": "^10.1.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.10",
+    "@cloudflare/workers-types": "^4.20251221.0",
     "@types/node": "^20.19.25",
     "@vitest/coverage-v8": "^4.0.9",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
-    "vitest": "^4.0.9"
+    "vitest": "^4.0.9",
+    "wrangler": "^4.56.0"
   }
 }

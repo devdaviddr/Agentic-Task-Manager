@@ -1,19 +1,20 @@
+import type { D1Database } from '@cloudflare/workers-types';
 import { ColumnModel } from '../models/Column';
 import type { Column, CreateColumnRequest } from '../types';
 
 export class ColumnService {
-  static async getColumnsByBoard(boardId: number): Promise<Column[]> {
+  static async getColumnsByBoard(db: D1Database, boardId: number): Promise<Column[]> {
     try {
-      return await ColumnModel.findByBoardId(boardId);
+      return await ColumnModel.findByBoardId(db, boardId);
     } catch (error) {
       console.error('Service error - getColumnsByBoard:', error);
       throw new Error('Failed to retrieve columns');
     }
   }
 
-  static async getColumnById(id: number): Promise<Column> {
+  static async getColumnById(db: D1Database, id: number): Promise<Column> {
     try {
-      const column = await ColumnModel.findById(id);
+      const column = await ColumnModel.findById(db, id);
       if (!column) {
         throw new Error('Column not found');
       }
@@ -27,12 +28,12 @@ export class ColumnService {
     }
   }
 
-  static async createColumn(boardId: number, columnData: CreateColumnRequest): Promise<Column> {
+  static async createColumn(db: D1Database, boardId: number, columnData: CreateColumnRequest): Promise<Column> {
     try {
       // Business logic validation
       this.validateCreateColumnData(columnData);
 
-      return await ColumnModel.create(boardId, columnData);
+      return await ColumnModel.create(db, boardId, columnData);
     } catch (error) {
       console.error('Service error - createColumn:', error);
       if (error instanceof Error && error.message.toLowerCase().includes('validation')) {
@@ -42,12 +43,12 @@ export class ColumnService {
     }
   }
 
-  static async updateColumn(id: number, columnData: Partial<CreateColumnRequest>): Promise<Column> {
+  static async updateColumn(db: D1Database, id: number, columnData: Partial<CreateColumnRequest>): Promise<Column> {
     try {
       // Business logic validation
       this.validateUpdateColumnData(columnData);
 
-      const column = await ColumnModel.update(id, columnData);
+      const column = await ColumnModel.update(db, id, columnData);
       if (!column) {
         throw new Error('Column not found or no changes made');
       }
@@ -61,9 +62,9 @@ export class ColumnService {
     }
   }
 
-  static async deleteColumn(id: number): Promise<void> {
+  static async deleteColumn(db: D1Database, id: number): Promise<void> {
     try {
-      const deleted = await ColumnModel.delete(id);
+      const deleted = await ColumnModel.delete(db, id);
       if (!deleted) {
         throw new Error('Column not found');
       }
@@ -76,9 +77,9 @@ export class ColumnService {
     }
   }
 
-  static async moveColumn(id: number, newPosition: number): Promise<Column> {
+  static async moveColumn(db: D1Database, id: number, newPosition: number): Promise<Column> {
     try {
-      const column = await ColumnModel.moveColumn(id, newPosition);
+      const column = await ColumnModel.moveColumn(db, id, newPosition);
       if (!column) {
         throw new Error('Column not found');
       }

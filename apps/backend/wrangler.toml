@@ -1,0 +1,15 @@
+name = "taskmanager-backend"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+main = "src/worker.ts"
+
+[env.development]
+vars = { NODE_ENV = "development" }
+
+[env.production]
+vars = { NODE_ENV = "production" }
+
+[[d1_databases]]
+binding = "DB"
+database_name = "taskmanager"
+database_id = "local-development-db"

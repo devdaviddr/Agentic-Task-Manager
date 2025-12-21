@@ -1,10 +1,10 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { UserModel } from '../models/User';
 import { getTestPool } from '../test/setup';
-import bcrypt from 'bcryptjs';
 
 describe('User Model', () => {
   let testUserId: number;
+  const testFirebaseUid = 'test-firebase-uid-123';
 
   beforeEach(async () => {
     // Clean up test data
@@ -12,12 +12,11 @@ describe('User Model', () => {
     await pool.query('DELETE FROM users');
 
     // Create a test user for update/delete tests
-    const hashedPassword = await bcrypt.hash('TestPassword123!@#', 12);
     const result = await pool.query(`
-      INSERT INTO users (email, password_hash, name, role)
+      INSERT INTO users (email, firebase_uid, name, role)
       VALUES ($1, $2, $3, $4)
       RETURNING id
-    `, ['test@example.com', hashedPassword, 'Test User', 'user']);
+    `, ['test@example.com', testFirebaseUid, 'Test User', 'user']);
     testUserId = result.rows[0].id;
   });
 
@@ -29,10 +28,10 @@ describe('User Model', () => {
       expect(user?.email).toBe('test@example.com');
       expect(user?.name).toBe('Test User');
       expect(user?.role).toBe('user');
+      expect(user?.firebase_uid).toBe(testFirebaseUid);
       expect(user).toHaveProperty('id');
       expect(user).toHaveProperty('created_at');
       expect(user).toHaveProperty('updated_at');
-      expect(user).toHaveProperty('password_hash');
     });
 
     test('returns null when email does not exist', async () => {
@@ -51,6 +50,7 @@ describe('User Model', () => {
       expect(user?.email).toBe('test@example.com');
       expect(user?.name).toBe('Test User');
       expect(user?.role).toBe('user');
+      expect(user?.firebase_uid).toBe(testFirebaseUid);
     });
 
     test('returns null when id does not exist', async () => {
@@ -60,23 +60,41 @@ describe('User Model', () => {
     });
   });
 
+  describe('findByFirebaseUid', () => {
+    test('returns user when Firebase UID exists', async () => {
+      const user = await UserModel.findByFirebaseUid(testFirebaseUid);
+
+      expect(user).toBeDefined();
+      expect(user?.firebase_uid).toBe(testFirebaseUid);
+      expect(user?.email).toBe('test@example.com');
+      expect(user?.name).toBe('Test User');
+      expect(user?.role).toBe('user');
+    });
+
+    test('returns null when Firebase UID does not exist', async () => {
+      const user = await UserModel.findByFirebaseUid('nonexistent-uid');
+
+      expect(user).toBeNull();
+    });
+  });
+
   describe('findAll', () => {
     test('returns all users', async () => {
       // Create another user
-      const hashedPassword2 = await bcrypt.hash('AnotherPassword123!@#', 12);
+      const anotherUid = 'another-firebase-uid';
       await getTestPool().query(`
-        INSERT INTO users (email, password_hash, name, role)
+        INSERT INTO users (email, firebase_uid, name, role)
         VALUES ($1, $2, $3, $4)
-      `, ['another@example.com', hashedPassword2, 'Another User', 'admin']);
+      `, ['another@example.com', anotherUid, 'Another User', 'admin']);
 
       const users = await UserModel.findAll();
 
       expect(users).toHaveLength(2);
       expect(users[0]).toHaveProperty('id');
       expect(users[0]).toHaveProperty('email');
+      expect(users[0]).toHaveProperty('firebase_uid');
       expect(users[0]).toHaveProperty('name');
       expect(users[0]).toHaveProperty('role');
-      expect(users[0]).not.toHaveProperty('password_hash');
 
       // Check that both users are present
       const emails = users.map(u => u.email).sort();
@@ -93,60 +111,51 @@ describe('User Model', () => {
     });
   });
 
-  describe('create', () => {
+  describe('createFromFirebase', () => {
     test('creates a new user successfully', async () => {
-      const userData = {
-        email: 'newuser@example.com',
-        password: 'NewPassword123!@#',
-        name: 'New User'
-      };
+      const firebaseUid = 'new-firebase-uid';
+      const email = 'newuser@example.com';
+      const name = 'New User';
 
-      const user = await UserModel.create(userData);
+      const user = await UserModel.createFromFirebase(firebaseUid, email, name);
 
       expect(user).toBeDefined();
       expect(user.id).toBeDefined();
-      expect(user.email).toBe(userData.email);
-      expect(user.name).toBe(userData.name);
+      expect(user.email).toBe(email);
+      expect(user.firebase_uid).toBe(firebaseUid);
+      expect(user.name).toBe(name);
       expect(user.role).toBe('user');
       expect(user).toHaveProperty('created_at');
       expect(user).toHaveProperty('updated_at');
-      expect(user).toHaveProperty('password_hash');
-
-      // Verify password was hashed
-      const isValidPassword = await bcrypt.compare(userData.password, user.password_hash);
-      expect(isValidPassword).toBe(true);
     });
 
     test('creates user with null name', async () => {
-      const userData = {
-        email: 'noname@example.com',
-        password: 'Password123!@#',
-        name: undefined
-      };
+      const firebaseUid = 'no-name-uid';
+      const email = 'noname@example.com';
 
-      const user = await UserModel.create(userData);
+      const user = await UserModel.createFromFirebase(firebaseUid, email);
 
       expect(user.name).toBeNull();
     });
   });
 
-  describe('verifyPassword', () => {
-    test('returns true for correct password', async () => {
-      const user = await UserModel.findByEmail('test@example.com');
-      expect(user).toBeDefined();
+  describe('updateFirebaseUid', () => {
+    test('updates Firebase UID for existing user', async () => {
+      const newFirebaseUid = 'updated-firebase-uid';
+      const email = 'test@example.com';
 
-      const isValid = await UserModel.verifyPassword(user!, 'TestPassword123!@#');
+      const updatedUser = await UserModel.updateFirebaseUid(email, newFirebaseUid);
 
-      expect(isValid).toBe(true);
+      expect(updatedUser).toBeDefined();
+      expect(updatedUser?.firebase_uid).toBe(newFirebaseUid);
+      expect(updatedUser?.email).toBe(email);
+      expect(updatedUser?.id).toBe(testUserId);
     });
 
-    test('returns false for incorrect password', async () => {
-      const user = await UserModel.findByEmail('test@example.com');
-      expect(user).toBeDefined();
+    test('returns null when email does not exist', async () => {
+      const updatedUser = await UserModel.updateFirebaseUid('nonexistent@example.com', 'some-uid');
 
-      const isValid = await UserModel.verifyPassword(user!, 'WrongPassword123!@#');
-
-      expect(isValid).toBe(false);
+      expect(updatedUser).toBeNull();
     });
   });
 

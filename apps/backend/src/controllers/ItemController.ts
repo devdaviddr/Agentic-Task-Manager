@@ -12,10 +12,14 @@ export class ItemController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board access via item (owner or assigned to tasks)
       try {
-        await checkBoardAccessViaItem(id, user.id);
+        await checkBoardAccessViaItem(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Item not found' || error.message === 'Board not found') {
@@ -28,7 +32,7 @@ export class ItemController {
         throw error;
       }
 
-      const item = await ItemService.getItemById(id);
+      const item = await ItemService.getItemById(db, id);
       return c.json(item);
     } catch (error) {
       console.error('Controller error - get item:', error);
@@ -47,10 +51,14 @@ export class ItemController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board access via column (owner or assigned to tasks)
       try {
-        await checkBoardAccessViaColumn(columnId, user.id);
+        await checkBoardAccessViaColumn(db, columnId, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Column not found' || error.message === 'Board not found') {
@@ -63,7 +71,7 @@ export class ItemController {
         throw error;
       }
 
-      const items = await ItemService.getItemsByColumn(columnId);
+      const items = await ItemService.getItemsByColumn(db, columnId);
       return c.json(items);
     } catch (error) {
       console.error('Controller error - getByColumn items:', error);
@@ -79,10 +87,14 @@ export class ItemController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership via column
       try {
-        await checkBoardOwnershipViaColumn(columnId, user.id);
+        await checkBoardOwnershipViaColumn(db, columnId, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Column not found') {
@@ -107,7 +119,7 @@ export class ItemController {
         end_date: body.end_date ? new Date(body.end_date) : undefined,
       };
 
-      const item = await ItemService.createItem(columnId, itemData);
+      const item = await ItemService.createItem(db, columnId, itemData);
       return c.json(item, 201);
     } catch (error) {
       console.error('Controller error - create item:', error);
@@ -130,10 +142,14 @@ export class ItemController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership via item
       try {
-        await checkBoardOwnershipViaItem(id, user.id);
+        await checkBoardOwnershipViaItem(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Item not found' || error.message === 'Board not found') {
@@ -155,7 +171,7 @@ export class ItemController {
         end_date: body.end_date ? new Date(body.end_date) : undefined,
       };
 
-      const item = await ItemService.updateItem(id, itemData);
+      const item = await ItemService.updateItem(db, id, itemData);
 
       return c.json(item);
     } catch (error) {
@@ -175,10 +191,14 @@ export class ItemController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership via item
       try {
-        await checkBoardOwnershipViaItem(id, user.id);
+        await checkBoardOwnershipViaItem(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Item not found' || error.message === 'Board not found') {
@@ -193,7 +213,7 @@ export class ItemController {
 
       const body: MoveItemRequest = await c.req.json();
 
-      const item = await ItemService.moveItem(id, body);
+      const item = await ItemService.moveItem(db, id, body);
       return c.json(item);
     } catch (error) {
       console.error('Controller error - move item:', error);
@@ -212,10 +232,14 @@ export class ItemController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership via item
       try {
-        await checkBoardOwnershipViaItem(id, user.id);
+        await checkBoardOwnershipViaItem(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Item not found' || error.message === 'Board not found') {
@@ -228,7 +252,7 @@ export class ItemController {
         throw error;
       }
 
-      await ItemService.deleteItem(id);
+      await ItemService.deleteItem(db, id);
       return c.json({ message: 'Item deleted successfully' });
     } catch (error) {
       console.error('Controller error - delete item:', error);
@@ -247,10 +271,14 @@ export class ItemController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership via item
       try {
-        await checkBoardOwnershipViaItem(id, user.id);
+        await checkBoardOwnershipViaItem(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Item not found' || error.message === 'Board not found') {
@@ -266,7 +294,7 @@ export class ItemController {
       const body = await c.req.json();
       const archived = body.archived !== undefined ? body.archived : true;
 
-      const item = await ItemService.archiveItem(id, archived);
+      const item = await ItemService.archiveItem(db, id, archived);
       return c.json(item);
     } catch (error) {
       console.error('Controller error - archive item:', error);
@@ -285,10 +313,14 @@ export class ItemController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership via item
       try {
-        await checkBoardOwnershipViaItem(itemId, user.id);
+        await checkBoardOwnershipViaItem(db, itemId, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Item not found' || error.message === 'Board not found') {
@@ -307,7 +339,7 @@ export class ItemController {
         return c.json({ error: 'Invalid user ID' }, 400);
       }
 
-      const success = await ItemService.assignUserToItem(itemId, userId);
+      const success = await ItemService.assignUserToItem(db, itemId, userId);
       if (!success) {
         return c.json({ error: 'Failed to assign user' }, 500);
       }
@@ -328,10 +360,14 @@ export class ItemController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership via item
       try {
-        await checkBoardOwnershipViaItem(itemId, user.id);
+        await checkBoardOwnershipViaItem(db, itemId, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Item not found' || error.message === 'Board not found') {
@@ -344,7 +380,7 @@ export class ItemController {
         throw error;
       }
 
-      const success = await ItemService.removeUserFromItem(itemId, userId);
+      const success = await ItemService.removeUserFromItem(db, itemId, userId);
       if (!success) {
         return c.json({ error: 'User not assigned to item' }, 404);
       }

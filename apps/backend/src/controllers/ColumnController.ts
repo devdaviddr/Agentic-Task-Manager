@@ -12,10 +12,14 @@ export class ColumnController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board access (owner or assigned to tasks)
       try {
-        await checkBoardAccess(boardId, user.id);
+        await checkBoardAccess(db, boardId, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Board not found') {
@@ -28,7 +32,7 @@ export class ColumnController {
         throw error;
       }
 
-      const columns = await ColumnService.getColumnsByBoard(boardId);
+      const columns = await ColumnService.getColumnsByBoard(db, boardId);
       return c.json(columns);
     } catch (error) {
       console.error('Controller error - getByBoard columns:', error);
@@ -44,10 +48,14 @@ export class ColumnController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership
       try {
-        await checkBoardOwnership(boardId, user.id);
+        await checkBoardOwnership(db, boardId, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Board not found') {
@@ -62,7 +70,7 @@ export class ColumnController {
 
       const body: CreateColumnRequest = await c.req.json();
 
-      const column = await ColumnService.createColumn(boardId, body);
+      const column = await ColumnService.createColumn(db, boardId, body);
       return c.json(column, 201);
     } catch (error) {
       console.error('Controller error - create column:', error);
@@ -81,10 +89,14 @@ export class ColumnController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership via column
       try {
-        await checkBoardOwnershipViaColumn(id, user.id);
+        await checkBoardOwnershipViaColumn(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Column not found' || error.message === 'Board not found') {
@@ -98,7 +110,7 @@ export class ColumnController {
       }
 
       const body: Partial<CreateColumnRequest> = await c.req.json();
-      const column = await ColumnService.updateColumn(id, body);
+      const column = await ColumnService.updateColumn(db, id, body);
 
       return c.json(column);
     } catch (error) {
@@ -118,10 +130,14 @@ export class ColumnController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership via column
       try {
-        await checkBoardOwnershipViaColumn(id, user.id);
+        await checkBoardOwnershipViaColumn(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Column not found' || error.message === 'Board not found') {
@@ -134,7 +150,7 @@ export class ColumnController {
         throw error;
       }
 
-      await ColumnService.deleteColumn(id);
+      await ColumnService.deleteColumn(db, id);
       return c.json({ message: 'Column deleted successfully' });
     } catch (error) {
       console.error('Controller error - delete column:', error);
@@ -153,10 +169,14 @@ export class ColumnController {
       }
 
       const user = c.get('user');
+      const db = (c.env as any)?.DB;
+      if (!db) {
+        return c.json({ error: 'Database not available' }, 500);
+      }
       
       // Check board ownership via column
       try {
-        await checkBoardOwnershipViaColumn(id, user.id);
+        await checkBoardOwnershipViaColumn(db, id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Column not found' || error.message === 'Board not found') {
@@ -176,7 +196,7 @@ export class ColumnController {
         return c.json({ error: 'Invalid position' }, 400);
       }
 
-      const column = await ColumnService.moveColumn(id, position);
+      const column = await ColumnService.moveColumn(db, id, position);
       return c.json(column);
     } catch (error) {
       console.error('Controller error - move column:', error);

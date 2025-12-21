@@ -17,7 +17,12 @@ const adminRoutes = new Hono<{ Variables: Variables }>();
 // Get all users (admin only)
 adminRoutes.get('/users', authMiddleware, requireAdmin, async (c: AppContext) => {
   try {
-    const users = await UserModel.findAll();
+    const db = (c.env as any)?.DB;
+    if (!db) {
+      return c.json({ error: 'Database not available' }, 500);
+    }
+    
+    const users = await UserModel.findAll(db);
     return c.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -49,11 +54,16 @@ adminRoutes.put('/users/:id', authMiddleware, requireAdmin, async (c: AppContext
   }
 
   try {
-    const updatedUser = await UserModel.update(userId, { role, name, email })
-    return c.json(updatedUser)
+    const db = (c.env as any)?.DB;
+    if (!db) {
+      return c.json({ error: 'Database not available' }, 500);
+    }
+    
+    const updatedUser = await UserModel.update(db, userId, { role, name, email });
+    return c.json(updatedUser);
   } catch (error) {
-    console.error('Error updating user:', error)
-    return c.json({ error: 'Failed to update user' }, 500)
+    console.error('Error updating user:', error);
+    return c.json({ error: 'Failed to update user' }, 500);
   }
 })
 
@@ -77,11 +87,16 @@ adminRoutes.delete('/users/:id', authMiddleware, requireAdmin, async (c: AppCont
   }
 
   try {
-    await UserModel.delete(userId)
-    return c.json({ message: 'User deleted successfully' })
+    const db = (c.env as any)?.DB;
+    if (!db) {
+      return c.json({ error: 'Database not available' }, 500);
+    }
+    
+    await UserModel.delete(db, userId);
+    return c.json({ message: 'User deleted successfully' });
   } catch (error) {
-    console.error('Error deleting user:', error)
-    return c.json({ error: 'Failed to delete user' }, 500)
+    console.error('Error deleting user:', error);
+    return c.json({ error: 'Failed to delete user' }, 500);
   }
 })
 

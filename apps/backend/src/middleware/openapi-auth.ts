@@ -3,7 +3,7 @@ import { AuthService } from '../services/AuthService';
 
 /**
  * OpenAPI Bearer token authentication middleware
- * Extracts JWT token from Authorization header and validates it
+ * Extracts Firebase ID token from Authorization header and validates it
  * Attaches user data to context if valid
  */
 export const openapiAuth: MiddlewareHandler = async (c: Context, next) => {
@@ -19,20 +19,19 @@ export const openapiAuth: MiddlewareHandler = async (c: Context, next) => {
   // Extract token from "Bearer <token>"
   const token = authHeader.slice(7);
 
-  // Verify token
-  const payload = AuthService.verifyToken(token);
-  if (!payload) {
+  // Verify Firebase ID token
+  const db = (c.env as any)?.DB;
+  if (!db) {
+    return c.json({ error: 'Database not available' }, 500);
+  }
+  
+  const user = await AuthService.verifyToken(db, token);
+  if (!user) {
     return c.json({ error: 'Invalid token' }, 401);
   }
 
-  // Check if token is blacklisted
-  const isBlacklisted = await AuthService.isTokenBlacklisted(token);
-  if (isBlacklisted) {
-    return c.json({ error: 'Token has been invalidated' }, 401);
-  }
-
-  // Attach user payload to context for protected routes to use
-  c.set('user', payload);
+  // Attach user to context for protected routes to use
+  c.set('user', user);
 
   return next();
 };

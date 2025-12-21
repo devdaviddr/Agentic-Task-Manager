@@ -1,45 +1,40 @@
 import { MiddlewareHandler } from 'hono';
-import { AuthService } from '../services/AuthService';
+import { auth as firebaseAuth } from '../config/firebase';
+import { UserModel } from '../models/User';
 
 export const authMiddleware: MiddlewareHandler = async (c, next) => {
-  let token: string | null = null;
-
-  // Check Authorization header first (Bearer token)
-  const authHeader = c.req.header('Authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    token = authHeader.substring(7);
-  }
-
-  // Fall back to cookie if no Bearer token
-  if (!token) {
-    const cookieHeader = c.req.header('Cookie');
-    if (cookieHeader) {
-      const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
-        const [name, value] = cookie.trim().split('=');
-        acc[name] = value;
-        return acc;
-      }, {} as Record<string, string>);
-      token = cookies.accessToken;
+  try {
+    // Get token from Authorization header
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized - missing token' }, 401);
     }
+
+    const token = authHeader.substring(7);
+
+    // Verify Firebase ID token
+    const decodedToken = await firebaseAuth.verifyIdToken(token);
+    const firebaseUid = decodedToken.uid;
+
+    // Get D1 database from environment
+    const db = (c.env as any)?.DB;
+    if (!db) {
+      console.error('Auth middleware: Database not available');
+      return c.json({ error: 'Database unavailable' }, 500);
+    }
+
+    // Look up user in D1 database by Firebase UID
+    const user = await UserModel.findByFirebaseUid(db, firebaseUid);
+
+    if (!user) {
+      return c.json({ error: 'User not found in database' }, 404);
+    }
+
+    // Attach user to context
+    c.set('user', user);
+    return await next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    return c.json({ error: 'Invalid or expired token' }, 401);
   }
-
-  if (!token) {
-    return c.json({ error: 'Unauthorized - missing token' }, 401);
-  }
-
-  // Check if token is blacklisted
-  const isBlacklisted = await AuthService.isTokenBlacklisted(token);
-  if (isBlacklisted) {
-    return c.json({ error: 'Token has been invalidated' }, 401);
-  }
-
-  const user = await AuthService.getUserFromToken(token);
-
-  if (!user) {
-    return c.json({ error: 'Invalid token' }, 401);
-  }
-
-  // Attach user to context
-  c.set('user', user);
-  return await next();
 };
