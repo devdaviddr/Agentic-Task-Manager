@@ -1,23 +1,23 @@
-import type { MiddlewareHandler } from 'hono';
+import type { Request, Response, NextFunction } from 'express';
 
 // Environment detection
 const isProduction = process.env.NODE_ENV === 'production';
 
-export const securityHeaders: MiddlewareHandler = async (c, next) => {
-  await next();
-
+export const securityHeaders = (_req: Request, res: Response, next: NextFunction): void => {
   // Security headers
-  c.res.headers.set('X-Content-Type-Options', 'nosniff');
-  c.res.headers.set('X-Frame-Options', 'DENY');
-  c.res.headers.set('X-XSS-Protection', '1; mode=block');
-  c.res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  c.res.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
 
   // HSTS in production
   if (isProduction) {
-    c.res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
 
   // Remove X-Powered-By header
-  c.res.headers.delete('X-Powered-By');
+  res.removeHeader('X-Powered-By');
+
+  next();
 };

@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { auth, parseResponse } from '../test/utils';
+import request from 'supertest';
+import { auth } from '../test/utils';
 import app from '../app';
 
 describe('Authentication API (Firebase)', () => {
@@ -47,11 +48,9 @@ describe('Authentication API (Firebase)', () => {
     });
 
     test('Returns 401 with empty Bearer token', async () => {
-      const res = await app.request('/auth/me', {
-        method: 'GET',
-        headers: { Authorization: 'Bearer ' },
-      });
-      const data = await parseResponse(res);
+      const res = await request(app)
+        .get('/auth/me')
+        .set('Authorization', 'Bearer ');
 
       expect(res.status).toBe(401);
     });
@@ -74,26 +73,22 @@ describe('Authentication API (Firebase)', () => {
 
   describe('Authorization header enforcement', () => {
     test('Protected API endpoints reject requests without Authorization header', async () => {
-      const res = await app.request('/api/boards', {
-        method: 'GET',
-      });
+      const res = await request(app).get('/api/boards');
       expect(res.status).toBe(401);
     });
 
     test('Protected API endpoints reject requests with invalid token', async () => {
-      const res = await app.request('/api/boards', {
-        method: 'GET',
-        headers: { Authorization: 'Bearer bad-token' },
-      });
+      const res = await request(app)
+        .get('/api/boards')
+        .set('Authorization', 'Bearer bad-token');
       expect(res.status).toBe(401);
     });
 
     test('Protected API endpoints accept valid Firebase ID token', async () => {
       const user = await auth.register();
-      const res = await app.request('/api/boards', {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${user.accessToken}` },
-      });
+      const res = await request(app)
+        .get('/api/boards')
+        .set('Authorization', `Bearer ${user.accessToken}`);
       expect(res.status).toBe(200);
     });
   });

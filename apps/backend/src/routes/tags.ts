@@ -1,9 +1,9 @@
-import { Hono } from 'hono';
+import { Router } from 'express';
 import { TagController } from '../controllers/TagController';
 import { authMiddleware } from '../middleware/auth';
 import { requireAdmin } from '../middleware/roleAuth';
 
-const router = new Hono();
+const router = Router();
 
 // GET /tags - Get all tags (authenticated users)
 router.get('/tags', authMiddleware, TagController.getAll);

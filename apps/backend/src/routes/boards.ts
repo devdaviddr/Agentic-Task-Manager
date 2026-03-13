@@ -1,8 +1,8 @@
-import { Hono } from 'hono';
+import { Router } from 'express';
 import { BoardController } from '../controllers/BoardController';
 import { authMiddleware } from '../middleware/auth';
 
-const boardRoutes = new Hono();
+const boardRoutes = Router();
 
 boardRoutes.get('/boards', authMiddleware, BoardController.getAll);
 boardRoutes.get('/boards/:id', authMiddleware, BoardController.getById);

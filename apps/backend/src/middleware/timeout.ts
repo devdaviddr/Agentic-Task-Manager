@@ -1,9 +1,14 @@
-import type { MiddlewareHandler } from 'hono';
+import type { Request, Response, NextFunction } from 'express';
 
-export const timeout: MiddlewareHandler = async (_c, next) => {
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Request timeout')), 30000); // 30 seconds
-  });
+export const timeout = (req: Request, res: Response, next: NextFunction): void => {
+  const timeoutId = setTimeout(() => {
+    if (!res.headersSent) {
+      res.status(503).json({ error: 'Request timeout' });
+    }
+  }, 30000); // 30 seconds
 
-  await Promise.race([next(), timeoutPromise]);
+  res.on('finish', () => clearTimeout(timeoutId));
+  res.on('close', () => clearTimeout(timeoutId));
+
+  next();
 };

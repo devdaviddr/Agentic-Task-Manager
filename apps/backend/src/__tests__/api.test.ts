@@ -1,34 +1,32 @@
 import { describe, test, expect } from 'vitest';
+import request from 'supertest';
 import app from '../app';
 
 describe('API Endpoints', () => {
   test('GET / - returns API info', async () => {
-    const res = await app.request('/');
+    const res = await request(app).get('/');
     expect(res.status).toBe(200);
 
-    const data = await res.json();
-    expect(data).toHaveProperty('message', 'Task Manager API');
-    expect(data).toHaveProperty('version', '1.0.0');
-    expect(data).toHaveProperty('environment');
-    expect(data).toHaveProperty('timestamp');
+    expect(res.body).toHaveProperty('message', 'Task Manager API');
+    expect(res.body).toHaveProperty('version', '1.0.0');
+    expect(res.body).toHaveProperty('environment');
+    expect(res.body).toHaveProperty('timestamp');
   });
 
   test('GET /health - returns health status', async () => {
-    const res = await app.request('/health');
+    const res = await request(app).get('/health');
     expect(res.status).toBe(200);
 
-    const data = await res.json();
-    expect(data).toHaveProperty('status', 'ok');
-    expect(data).toHaveProperty('database', 'connected');
-    expect(data).toHaveProperty('timestamp');
+    expect(res.body).toHaveProperty('status', 'ok');
+    expect(res.body).toHaveProperty('database', 'connected');
+    expect(res.body).toHaveProperty('timestamp');
   });
 
   test('GET /nonexistent - returns 404', async () => {
-    const res = await app.request('/nonexistent');
+    const res = await request(app).get('/nonexistent');
     expect(res.status).toBe(404);
 
-    const data = await res.json();
-    expect(data).toHaveProperty('error', 'Not Found');
-    expect(data).toHaveProperty('path', '/nonexistent');
+    expect(res.body).toHaveProperty('error', 'Not Found');
+    expect(res.body).toHaveProperty('path', '/nonexistent');
   });
 });

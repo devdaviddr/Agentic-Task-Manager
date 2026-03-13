@@ -1,6 +1,6 @@
-import type { MiddlewareHandler } from 'hono';
+import type { Request, Response, NextFunction } from 'express';
 
-export const compression: MiddlewareHandler = async (_c, next) => {
-  await next();
-  // Compression headers will be set automatically by Hono/Node.js for supported content types
+export const compression = (_req: Request, _res: Response, next: NextFunction): void => {
+  next();
+  // Actual response compression is handled by the `compression` npm package in app.ts
 };

@@ -1,140 +1,153 @@
-import type { Context } from 'hono';
+import type { Request, Response } from 'express';
 import { TaskService } from '../services/TaskService';
 import type { CreateTaskRequest, UpdateTaskRequest } from '../types';
 import { checkTaskOwnership } from '../utils/auth';
 
 export class TaskController {
-  static async getAll(c: Context) {
+  static async getAll(req: Request, res: Response): Promise<void> {
     try {
-      const user = c.get('user');
+      const user = req.user!;
       const tasks = await TaskService.getAllTasksByUser(user.id);
-      return c.json(tasks);
+      res.json(tasks);
     } catch (error) {
       console.error('Controller error - getAll:', error);
-      return c.json({ error: 'Internal server error' }, 500);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  static async getById(c: Context) {
+  static async getById(req: Request, res: Response): Promise<void> {
     try {
-      const id = parseInt(c.req.param('id'));
+      const id = parseInt(req.params.id as string);
       if (isNaN(id)) {
-        return c.json({ error: 'Invalid task ID' }, 400);
+        res.status(400).json({ error: 'Invalid task ID' });
+        return;
       }
 
-      const user = c.get('user');
-      
+      const user = req.user!;
+
       // Check task ownership
       try {
         await checkTaskOwnership(id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Task not found') {
-            return c.json({ error: error.message }, 404);
+            res.status(404).json({ error: error.message });
+            return;
           }
           if (error.message === 'Access denied') {
-            return c.json({ error: error.message }, 403);
+            res.status(403).json({ error: error.message });
+            return;
           }
         }
         throw error;
       }
 
       const task = await TaskService.getTaskById(id);
-      return c.json(task);
+      res.json(task);
     } catch (error) {
       console.error('Controller error - getById:', error);
       if (error instanceof Error && error.message === 'Task not found') {
-        return c.json({ error: error.message }, 404);
+        res.status(404).json({ error: error.message });
+        return;
       }
-      return c.json({ error: 'Internal server error' }, 500);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  static async create(c: Context) {
+  static async create(req: Request, res: Response): Promise<void> {
     try {
-      const body: CreateTaskRequest = await c.req.json();
-      const user = c.get('user');
-      
+      const body: CreateTaskRequest = req.body;
+      const user = req.user!;
+
       const task = await TaskService.createTask(body, user.id);
-      return c.json(task, 201);
+      res.status(201).json(task);
     } catch (error) {
       console.error('Controller error - create:', error);
       if (error instanceof Error && error.message.includes('Validation error')) {
-        return c.json({ error: error.message }, 400);
+        res.status(400).json({ error: error.message });
+        return;
       }
-      return c.json({ error: 'Internal server error' }, 500);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  static async update(c: Context) {
+  static async update(req: Request, res: Response): Promise<void> {
     try {
-      const id = parseInt(c.req.param('id'));
+      const id = parseInt(req.params.id as string);
       if (isNaN(id)) {
-        return c.json({ error: 'Invalid task ID' }, 400);
+        res.status(400).json({ error: 'Invalid task ID' });
+        return;
       }
 
-      const user = c.get('user');
-      
+      const user = req.user!;
+
       // Check task ownership
       try {
         await checkTaskOwnership(id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Task not found') {
-            return c.json({ error: error.message }, 404);
+            res.status(404).json({ error: error.message });
+            return;
           }
           if (error.message === 'Access denied') {
-            return c.json({ error: error.message }, 403);
+            res.status(403).json({ error: error.message });
+            return;
           }
         }
         throw error;
       }
 
-      const body: UpdateTaskRequest = await c.req.json();
+      const body: UpdateTaskRequest = req.body;
       const task = await TaskService.updateTask(id, body);
 
-      return c.json(task);
+      res.json(task);
     } catch (error) {
       console.error('Controller error - update:', error);
       if (error instanceof Error && (error.message === 'Task not found or no changes made' || error.message.includes('Validation error'))) {
-        return c.json({ error: error.message }, error.message === 'Task not found or no changes made' ? 404 : 400);
+        res.status(error.message === 'Task not found or no changes made' ? 404 : 400).json({ error: error.message });
+        return;
       }
-      return c.json({ error: 'Internal server error' }, 500);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  static async delete(c: Context) {
+  static async delete(req: Request, res: Response): Promise<void> {
     try {
-      const id = parseInt(c.req.param('id'));
+      const id = parseInt(req.params.id as string);
       if (isNaN(id)) {
-        return c.json({ error: 'Invalid task ID' }, 400);
+        res.status(400).json({ error: 'Invalid task ID' });
+        return;
       }
 
-      const user = c.get('user');
-      
+      const user = req.user!;
+
       // Check task ownership
       try {
         await checkTaskOwnership(id, user.id);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'Task not found') {
-            return c.json({ error: error.message }, 404);
+            res.status(404).json({ error: error.message });
+            return;
           }
           if (error.message === 'Access denied') {
-            return c.json({ error: error.message }, 403);
+            res.status(403).json({ error: error.message });
+            return;
           }
         }
         throw error;
       }
 
       await TaskService.deleteTask(id);
-      return c.json({ message: 'Task deleted successfully' });
+      res.json({ message: 'Task deleted successfully' });
     } catch (error) {
       console.error('Controller error - delete:', error);
       if (error instanceof Error && error.message === 'Task not found') {
-        return c.json({ error: error.message }, 404);
+        res.status(404).json({ error: error.message });
+        return;
       }
-      return c.json({ error: 'Internal server error' }, 500);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 }

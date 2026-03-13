@@ -14,33 +14,12 @@ if (!process.env.FIREBASE_PROJECT_ID) {
 }
 
 import { testPool } from './setup';
+import request from 'supertest';
 import app from '../app';
 import { TEST_FIREBASE_TOKEN_PREFIX } from './test-constants';
 
 // Export test utilities
 export { testPool, teardownTestDatabase, testConnection } from './setup';
-
-// Helper to create mock request
-export const createMockRequest = (method: string, url: string, body?: any, headers?: Record<string, string>) => {
-  return new Request(url, {
-    method,
-    body: body ? JSON.stringify(body) : undefined,
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-  });
-};
-
-// Helper to parse response
-export const parseResponse = async (response: Response) => {
-  const text = await response.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
-};
 
 // Delay helper for rate limit safety and CPU throttling
 export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -137,15 +116,13 @@ export const auth = {
     // Format understood by the test FirebaseAdminService override
     const token = `${TEST_FIREBASE_TOKEN_PREFIX}${uid}:${email}:${name}`;
 
-    const res = await app.request('/auth/me', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await parseResponse(res);
+    const res = await request(app)
+      .get('/auth/me')
+      .set('Authorization', `Bearer ${token}`);
 
     return {
       status: res.status,
-      data,
+      data: res.body,
       accessToken: token,
       refreshToken: '',
     };
@@ -155,14 +132,14 @@ export const auth = {
    * Get current user profile using a Firebase ID token
    */
   async getMe(accessToken?: string) {
-    const res = await app.request('/auth/me', {
-      method: 'GET',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
+    const req = request(app).get('/auth/me');
+    if (accessToken) {
+      req.set('Authorization', `Bearer ${accessToken}`);
+    }
+    const res = await req;
     return {
       status: res.status,
-      data,
+      data: res.body,
     };
   },
 };
@@ -173,98 +150,66 @@ export const boards = {
    * Create a new board
    */
   async create(boardData = testData.validBoard, accessToken?: string) {
-    const res = await app.request('/api/boards', {
-      method: 'POST',
-      body: JSON.stringify(boardData),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .post('/api/boards')
+      .set('Content-Type', 'application/json')
+      .send(boardData);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Get all boards for authenticated user
    */
   async getAll(accessToken?: string) {
-    const res = await app.request('/api/boards', {
-      method: 'GET',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).get('/api/boards');
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Get a specific board by ID
    */
   async getById(boardId: number, accessToken?: string) {
-    const res = await app.request(`/api/boards/${boardId}`, {
-      method: 'GET',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).get(`/api/boards/${boardId}`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Get board with all its columns
    */
   async getWithColumns(boardId: number, accessToken?: string) {
-    const res = await app.request(`/api/boards/${boardId}/full`, {
-      method: 'GET',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).get(`/api/boards/${boardId}/full`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Update a board
    */
   async update(boardId: number, updates: any, accessToken?: string) {
-    const res = await app.request(`/api/boards/${boardId}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .put(`/api/boards/${boardId}`)
+      .set('Content-Type', 'application/json')
+      .send(updates);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Delete a board
    */
   async delete(boardId: number, accessToken?: string) {
-    const res = await app.request(`/api/boards/${boardId}`, {
-      method: 'DELETE',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).delete(`/api/boards/${boardId}`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 };
 
@@ -274,83 +219,56 @@ export const columns = {
    * Create a new column in a board
    */
   async create(boardId: number, columnData: any, accessToken?: string) {
-    const res = await app.request(`/api/boards/${boardId}/columns`, {
-      method: 'POST',
-      body: JSON.stringify(columnData),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .post(`/api/boards/${boardId}/columns`)
+      .set('Content-Type', 'application/json')
+      .send(columnData);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Get all columns for a board
    */
   async getAll(boardId: number, accessToken?: string) {
-    const res = await app.request(`/api/boards/${boardId}/columns`, {
-      method: 'GET',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).get(`/api/boards/${boardId}/columns`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Get a specific column by ID (Note: no boardId needed in the URL)
    */
   async getById(columnId: number, accessToken?: string) {
-    const res = await app.request(`/api/columns/${columnId}`, {
-      method: 'GET',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).get(`/api/columns/${columnId}`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Update a column (Note: no boardId needed in the URL)
    */
   async update(columnId: number, updates: any, accessToken?: string) {
-    const res = await app.request(`/api/columns/${columnId}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .put(`/api/columns/${columnId}`)
+      .set('Content-Type', 'application/json')
+      .send(updates);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Delete a column (Note: no boardId needed in the URL)
    */
   async delete(columnId: number, accessToken?: string) {
-    const res = await app.request(`/api/columns/${columnId}`, {
-      method: 'DELETE',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).delete(`/api/columns/${columnId}`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 };
 
@@ -360,155 +278,105 @@ export const items = {
    * Create a new item in a column
    */
   async create(columnId: number, itemData: any, accessToken?: string) {
-    const res = await app.request(`/api/columns/${columnId}/items`, {
-      method: 'POST',
-      body: JSON.stringify(itemData),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .post(`/api/columns/${columnId}/items`)
+      .set('Content-Type', 'application/json')
+      .send(itemData);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Get a specific item by ID
    */
   async getById(itemId: number, accessToken?: string) {
-    const res = await app.request(`/api/items/${itemId}`, {
-      method: 'GET',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).get(`/api/items/${itemId}`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Get all items for a column
    */
   async getByColumn(columnId: number, accessToken?: string) {
-    const res = await app.request(`/api/columns/${columnId}/items`, {
-      method: 'GET',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).get(`/api/columns/${columnId}/items`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Update an item
    */
   async update(itemId: number, updates: any, accessToken?: string) {
-    const res = await app.request(`/api/items/${itemId}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .put(`/api/items/${itemId}`)
+      .set('Content-Type', 'application/json')
+      .send(updates);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Move an item to a different column/position
    */
   async move(itemId: number, moveData: any, accessToken?: string) {
-    const res = await app.request(`/api/items/${itemId}/move`, {
-      method: 'PUT',
-      body: JSON.stringify(moveData),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .put(`/api/items/${itemId}/move`)
+      .set('Content-Type', 'application/json')
+      .send(moveData);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Archive/unarchive an item
    */
   async archive(itemId: number, archived: boolean, accessToken?: string) {
-    const res = await app.request(`/api/items/${itemId}/archive`, {
-      method: 'PUT',
-      body: JSON.stringify({ archived }),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .put(`/api/items/${itemId}/archive`)
+      .set('Content-Type', 'application/json')
+      .send({ archived });
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Delete an item
    */
   async delete(itemId: number, accessToken?: string) {
-    const res = await app.request(`/api/items/${itemId}`, {
-      method: 'DELETE',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).delete(`/api/items/${itemId}`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Assign a user to an item
    */
   async assignUser(itemId: number, userId: number, accessToken?: string) {
-    const res = await app.request(`/api/items/${itemId}/users`, {
-      method: 'POST',
-      body: JSON.stringify({ user_id: userId }),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .post(`/api/items/${itemId}/users`)
+      .set('Content-Type', 'application/json')
+      .send({ user_id: userId });
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Remove a user from an item
    */
   async removeUser(itemId: number, userId: number, accessToken?: string) {
-    const res = await app.request(`/api/items/${itemId}/users/${userId}`, {
-      method: 'DELETE',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).delete(`/api/items/${itemId}/users/${userId}`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 };
 
@@ -518,83 +386,56 @@ export const tags = {
    * Create a new tag
    */
   async create(tagData: any, accessToken?: string) {
-    const res = await app.request('/api/tags', {
-      method: 'POST',
-      body: JSON.stringify(tagData),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .post('/api/tags')
+      .set('Content-Type', 'application/json')
+      .send(tagData);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Get all tags
    */
   async getAll(accessToken?: string) {
-    const res = await app.request('/api/tags', {
-      method: 'GET',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).get('/api/tags');
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Get a specific tag by ID
    */
   async getById(tagId: number, accessToken?: string) {
-    const res = await app.request(`/api/tags/${tagId}`, {
-      method: 'GET',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).get(`/api/tags/${tagId}`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Update a tag
    */
   async update(tagId: number, updates: any, accessToken?: string) {
-    const res = await app.request(`/api/tags/${tagId}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .put(`/api/tags/${tagId}`)
+      .set('Content-Type', 'application/json')
+      .send(updates);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Delete a tag
    */
   async delete(tagId: number, accessToken?: string) {
-    const res = await app.request(`/api/tags/${tagId}`, {
-      method: 'DELETE',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).delete(`/api/tags/${tagId}`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 };
 
@@ -604,82 +445,55 @@ export const tasks = {
    * Create a new task
    */
   async create(taskData: any, accessToken?: string) {
-    const res = await app.request('/api/tasks', {
-      method: 'POST',
-      body: JSON.stringify(taskData),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .post('/api/tasks')
+      .set('Content-Type', 'application/json')
+      .send(taskData);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Get all tasks for authenticated user
    */
   async getAll(accessToken?: string) {
-    const res = await app.request('/api/tasks', {
-      method: 'GET',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).get('/api/tasks');
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Get a specific task by ID
    */
   async getById(taskId: number, accessToken?: string) {
-    const res = await app.request(`/api/tasks/${taskId}`, {
-      method: 'GET',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).get(`/api/tasks/${taskId}`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Update a task
    */
   async update(taskId: number, updates: any, accessToken?: string) {
-    const res = await app.request(`/api/tasks/${taskId}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-      },
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app)
+      .put(`/api/tasks/${taskId}`)
+      .set('Content-Type', 'application/json')
+      .send(updates);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 
   /**
    * Delete a task
    */
   async delete(taskId: number, accessToken?: string) {
-    const res = await app.request(`/api/tasks/${taskId}`, {
-      method: 'DELETE',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    const data = await parseResponse(res);
-    return {
-      status: res.status,
-      data,
-    };
+    const req = request(app).delete(`/api/tasks/${taskId}`);
+    if (accessToken) req.set('Authorization', `Bearer ${accessToken}`);
+    const res = await req;
+    return { status: res.status, data: res.body };
   },
 };

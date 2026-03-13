@@ -1,8 +1,8 @@
-import { Hono } from 'hono';
+import { Router } from 'express';
 import { TaskController } from '../controllers/TaskController';
 import { authMiddleware } from '../middleware/auth';
 
-const taskRoutes = new Hono();
+const taskRoutes = Router();
 
 taskRoutes.get('/tasks', authMiddleware, TaskController.getAll);
 taskRoutes.get('/tasks/:id', authMiddleware, TaskController.getById);

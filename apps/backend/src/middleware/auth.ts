@@ -1,25 +1,29 @@
-import { MiddlewareHandler } from 'hono';
+import type { Request, Response, NextFunction } from 'express';
 import { FirebaseAdminService } from '../services/FirebaseAdminService';
 import { UserModel } from '../models/User';
 
-export const authMiddleware: MiddlewareHandler = async (c, next) => {
-  const authHeader = c.req.header('Authorization');
+export const authMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
-    return c.json({ error: 'Unauthorized - missing token' }, 401);
+    res.status(401).json({ error: 'Unauthorized - missing token' });
+    return;
   }
 
   const idToken = authHeader.substring(7);
   if (!idToken) {
-    return c.json({ error: 'Unauthorized - missing token' }, 401);
+    res.status(401).json({ error: 'Unauthorized - missing token' });
+    return;
   }
 
   const decoded = await FirebaseAdminService.verifyIdToken(idToken);
   if (!decoded) {
-    return c.json({ error: 'Invalid token' }, 401);
+    res.status(401).json({ error: 'Invalid token' });
+    return;
   }
 
   if (!decoded.email) {
-    return c.json({ error: 'Firebase token missing email claim' }, 400);
+    res.status(400).json({ error: 'Firebase token missing email claim' });
+    return;
   }
 
   // Find or create the user based on Firebase UID
@@ -29,7 +33,7 @@ export const authMiddleware: MiddlewareHandler = async (c, next) => {
     decoded.name,
   );
 
-  // Attach user to context
-  c.set('user', user);
-  return await next();
+  // Attach user to request
+  req.user = user;
+  next();
 };

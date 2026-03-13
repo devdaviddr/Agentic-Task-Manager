@@ -1,8 +1,8 @@
-import { Hono } from 'hono';
+import { Router } from 'express';
 import { ItemController } from '../controllers/ItemController';
 import { authMiddleware } from '../middleware/auth';
 
-const itemRoutes = new Hono();
+const itemRoutes = Router();
 
 itemRoutes.get('/items/:id', authMiddleware, ItemController.get);
 itemRoutes.get('/columns/:columnId/items', authMiddleware, ItemController.getByColumn);
