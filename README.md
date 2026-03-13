@@ -6,7 +6,7 @@ A modern, full-stack task management application built with React, TypeScript, N
 
 ## 🚀 Features
 
-- **JWT Authentication**: Secure login/signup with automatic token refresh
+- **Firebase Authentication**: Secure Google sign-in + token-based API auth with automatic token refresh
 - **Dashboard**: Overview of all user boards with quick access
 - **Kanban Boards**: Drag-and-drop interface for organizing tasks into columns
 - **Board Management**: Create and manage multiple project boards
@@ -41,12 +41,38 @@ A modern, full-stack task management application built with React, TypeScript, N
 2. **Set up environment variables**
    ```bash
    cp .env.example .env
+   # Then edit .env and provide Firebase credentials (see below)
    ```
 
 3. **Start the application**
    ```bash
    docker-compose up -d
    ```
+
+#### Firebase configuration
+
+This project uses Firebase Authentication (Google sign-in) on the frontend and Firebase Admin on the backend.
+
+In `.env` you should set your Firebase Web app values:
+
+```env
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+```
+
+And for backend verification, provide either a service account JSON (recommended) or a project ID:
+
+```env
+FIREBASE_SERVICE_ACCOUNT_PATH=./secrets/firebase-service-account.json
+# or
+FIREBASE_SERVICE_ACCOUNT_JSON='{"type":...}'
+# or (GCP only)
+FIREBASE_PROJECT_ID=...
+```
 
 4. **Access the application**
    - Frontend: http://localhost:5173
