@@ -33,9 +33,14 @@ services:
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON}
+      FIREBASE_SERVICE_ACCOUNT_PATH: ${FIREBASE_SERVICE_ACCOUNT_PATH:-/run/secrets/firebase-service-account.json}
     volumes:
       - ./apps/backend:/app
       - /app/node_modules
+      # Optional: mount a local service account key file for Firebase Admin
+      - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
     command: npm run dev
     restart: unless-stopped
 
@@ -49,6 +54,12 @@ services:
       NODE_ENV: development
       PORT: 5173
       VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+      VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+      VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+      VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+      VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+      VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
     volumes:
       - ./apps/frontend:/app
       - /app/node_modules
