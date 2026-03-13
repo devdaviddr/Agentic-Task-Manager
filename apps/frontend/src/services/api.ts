@@ -44,7 +44,8 @@ api.interceptors.request.use(
   async (config) => {
     const firebaseUser = auth.currentUser;
     if (firebaseUser) {
-      const idToken = await getIdToken(firebaseUser);
+      // Force refresh the ID token to avoid sending an expired token.
+      const idToken = await getIdToken(firebaseUser, true);
       config.headers.Authorization = `Bearer ${idToken}`;
     }
     return config;

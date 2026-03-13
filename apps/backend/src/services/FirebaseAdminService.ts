@@ -1,4 +1,4 @@
-import * as admin from 'firebase-admin';
+import admin from 'firebase-admin';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { readFileSync } from 'fs';
 
@@ -24,6 +24,7 @@ function getApp(): admin.app.App {
     }
 
     if (serviceAccountJson) {
+      console.log('Firebase Admin init: using FIREBASE_SERVICE_ACCOUNT_JSON');
       const serviceAccount = JSON.parse(serviceAccountJson) as admin.ServiceAccount;
       admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
     } else {
@@ -31,6 +32,7 @@ function getApp(): admin.app.App {
       const serviceAccountPrivateKey = process.env.FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY;
       const serviceAccountClientEmail = process.env.FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL;
       if (serviceAccountPrivateKey && serviceAccountClientEmail && projectId) {
+        console.log('Firebase Admin init: using FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY + FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL');
         const serviceAccount: admin.ServiceAccount = {
           projectId,
           privateKey: serviceAccountPrivateKey.replace(/\\n/g, '\n'),
@@ -38,9 +40,11 @@ function getApp(): admin.app.App {
         };
         admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
       } else if (projectId) {
+        console.log('Firebase Admin init: using projectId only (Application Default Credentials)');
         // Use application default credentials (e.g., in GCP environments)
         admin.initializeApp({ projectId });
       } else if (process.env.NODE_ENV === 'test') {
+        console.log('Firebase Admin init: test mode projectId');
         // In tests, use a mock project id; token verification is handled by override
         admin.initializeApp({ projectId: 'test-project' });
       } else {
@@ -61,8 +65,13 @@ export class FirebaseAdminService {
     }
     try {
       const app = getApp();
-      return await app.auth().verifyIdToken(idToken);
-    } catch {
+      const decoded = await app.auth().verifyIdToken(idToken);
+      if (!decoded) {
+        console.error('Firebase token verification returned null (no decoded token)');
+      }
+      return decoded;
+    } catch (err) {
+      console.error('Firebase token verification failed:', err);
       return null;
     }
   }

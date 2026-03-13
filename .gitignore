@@ -107,3 +107,4 @@ Desktop.ini
 
 # Project specific
 AGENTS.md
+secrets/firebase-service-account.json

@@ -1,10 +1,29 @@
 import 'dotenv/config';
 import http from 'http';
-import { testConnection } from './config/database';
+import { testConnection, pool } from './config/database';
 import app from './app';
 import { getCorsOrigins } from './utils/environment';
 
 const corsOrigins = getCorsOrigins();
+
+async function runStartupMigrations() {
+  console.log('🔄 Running startup migrations...');
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128) UNIQUE;
+  `);
+  await pool.query(`
+    ALTER TABLE users
+    ALTER COLUMN password_hash DROP NOT NULL;
+  `);
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'
+      CHECK (role IN ('user', 'admin', 'superadmin'));
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_firebase_uid ON users(firebase_uid);`);
+  console.log('✅ Startup migrations complete');
+}
 
 async function startServer() {
   try {
@@ -12,6 +31,13 @@ async function startServer() {
     await testConnection();
   } catch (error) {
     console.error('❌ Database connection failed, exiting...');
+    process.exit(1);
+  }
+
+  try {
+    await runStartupMigrations();
+  } catch (error) {
+    console.error('❌ Startup migrations failed:', error);
     process.exit(1);
   }
 

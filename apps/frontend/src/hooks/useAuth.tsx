@@ -52,7 +52,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
         try {
-          const idToken = await getIdToken(fbUser);
+          // Force-refresh token to avoid using a stale/expired cached token
+        const idToken = await getIdToken(fbUser, true);
           const response = await fetch(
             `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/auth/me`,
             {
