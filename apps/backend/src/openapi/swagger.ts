@@ -1,15 +1,12 @@
-import { swaggerUI } from '@hono/swagger-ui';
-
 /**
- * Swagger UI configuration
- * - Serves API documentation at /docs
- * - Includes built-in Bearer token authentication
- * - Points to OpenAPI spec at /openapi.json
+ * Swagger UI options
  */
-export const swaggerUIMiddleware = swaggerUI({
-  url: '/openapi.json',
-  defaultModelsExpandDepth: 1,
-  defaultModelExpandDepth: 1,
-  docExpansion: 'list',
-  filter: true,
-});
+export const swaggerUIOptions = {
+  customSiteTitle: 'Task Manager API Docs',
+  swaggerOptions: {
+    defaultModelsExpandDepth: 1,
+    defaultModelExpandDepth: 1,
+    docExpansion: 'list',
+    filter: true,
+  },
+};

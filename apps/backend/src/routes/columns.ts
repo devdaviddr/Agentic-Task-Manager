@@ -1,8 +1,8 @@
-import { Hono } from 'hono';
+import { Router } from 'express';
 import { ColumnController } from '../controllers/ColumnController';
 import { authMiddleware } from '../middleware/auth';
 
-const columnRoutes = new Hono();
+const columnRoutes = Router();
 
 columnRoutes.get('/boards/:boardId/columns', authMiddleware, ColumnController.getByBoard);
 columnRoutes.post('/boards/:boardId/columns', authMiddleware, ColumnController.create);

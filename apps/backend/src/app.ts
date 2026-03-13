@@ -6,22 +6,28 @@ if (!process.env.NODE_ENV) {
   dotenv.config();
 }
 
-import { Hono } from 'hono';
-import { cors } from 'hono/cors';
-import { rateLimiter } from 'hono-rate-limiter';
+import express from 'express';
+import cors from 'cors';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import swaggerUi from 'swagger-ui-express';
 import routes from './routes';
 import {
   errorHandler,
   logger,
   securityHeaders,
-  compression,
   timeout
 } from './middleware';
-import { swaggerUI } from '@hono/swagger-ui';
 import { isProduction, getCorsOrigins } from './utils/environment';
+import { generateOpenAPISpec } from './openapi/spec';
+import { swaggerUIOptions } from './openapi/swagger';
 
-const app = new Hono();
+const app = express();
 const isTestMode = process.env.NODE_ENV === 'test';
+
+// Parse JSON bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Environment-aware CORS configuration
 const corsOrigins = getCorsOrigins();
@@ -29,68 +35,67 @@ const corsOrigins = getCorsOrigins();
 // Rate limiting - strict limits for auth endpoints (skip in test mode)
 if (!isTestMode) {
   // Global rate limiting
-  app.use('*', rateLimiter({
+  app.use(rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     limit: isProduction ? 100 : 1000, // stricter in production
     standardHeaders: true,
-    keyGenerator: (c) => {
-      // Use IP address for rate limiting
-      return c.req.header('CF-Connecting-IP') ||
-             c.req.header('X-Forwarded-For') ||
-             c.req.header('X-Real-IP') ||
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+      return (req.headers['cf-connecting-ip'] as string) ||
+             (req.headers['x-forwarded-for'] as string) ||
+             (req.headers['x-real-ip'] as string) ||
+             req.ip ||
              'unknown';
     },
   }));
 }
 
 // CORS middleware
-app.use('*', cors({
+app.use(cors({
   origin: corsOrigins,
   credentials: true,
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   maxAge: 86400, // 24 hours
 }));
 
 // Security headers
-app.use('*', securityHeaders);
+app.use(securityHeaders);
 
-// Compression
-app.use('*', compression);
+// Response compression
+app.use(compression());
 
 // Request timeout
-app.use('*', timeout);
+app.use(timeout);
 
 // Logging middleware
-app.use('*', logger);
+app.use(logger);
 
-// Error handler (must be after other middleware)
-app.use('*', errorHandler);
+// Swagger UI documentation
+const openApiSpec = generateOpenAPISpec(process.env.API_URL || 'http://localhost:3001');
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, swaggerUIOptions));
 
-// Swagger UI documentation route
-const swaggerUIMiddleware = swaggerUI({
-  url: '/openapi.json',
-  defaultModelsExpandDepth: 1,
-  defaultModelExpandDepth: 1,
-  docExpansion: 'list',
-  filter: true,
+// OpenAPI spec endpoint (serves the spec for Swagger UI)
+app.get('/openapi.json', (_req, res) => {
+  const baseUrl = process.env.API_URL || 'http://localhost:3001';
+  res.json(generateOpenAPISpec(baseUrl));
 });
 
-app.get('/docs', swaggerUIMiddleware);
-
 // Routes
-app.route('/', routes);
+app.use('/', routes);
 
 // Root route
-app.get('/', (c) => c.json({
-  message: 'Task Manager API',
-  version: '1.0.0',
-  environment: process.env.NODE_ENV || 'development',
-  timestamp: new Date().toISOString()
-}));
+app.get('/', (_req, res) => {
+  res.json({
+    message: 'Task Manager API',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Health check route
-app.get('/health', async (c) => {
+app.get('/health', async (_req, res) => {
   try {
     // Import pool dynamically to avoid circular dependency
     const { pool } = await import('./config/database');
@@ -106,29 +111,23 @@ app.get('/health', async (c) => {
       version: process.version
     };
 
-    return c.json(health);
+    res.json(health);
   } catch (error) {
-    return c.json({
+    res.status(503).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
       database: 'disconnected',
       error: (error as Error).message
-    }, 503);
+    });
   }
 });
 
-// Import OpenAPI spec generator
-import { generateOpenAPISpec } from './openapi/spec';
-
-// OpenAPI spec endpoint (serves the spec for Swagger UI)
-app.get('/openapi.json', (c) => {
-  const baseUrl = process.env.API_URL || 'http://localhost:3001';
-  return c.json(generateOpenAPISpec(baseUrl));
-});
-
 // 404 handler
-app.notFound((c) => {
-  return c.json({ error: 'Not Found', path: c.req.path }, 404);
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Not Found', path: _req.path });
 });
+
+// Error handler (must be last)
+app.use(errorHandler);
 
 export default app;

@@ -32,7 +32,6 @@ function getApp(): admin.app.App {
       const serviceAccountClientEmail = process.env.FIREBASE_SERVICE_ACCOUNT_CLIENT_EMAIL;
       if (serviceAccountPrivateKey && serviceAccountClientEmail && projectId) {
         const serviceAccount: admin.ServiceAccount = {
-          type: 'service_account',
           projectId,
           privateKey: serviceAccountPrivateKey.replace(/\\n/g, '\n'),
           clientEmail: serviceAccountClientEmail,

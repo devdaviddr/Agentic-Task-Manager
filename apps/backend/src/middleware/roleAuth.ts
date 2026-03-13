@@ -1,14 +1,15 @@
-import { MiddlewareHandler } from 'hono';
+import type { Request, Response, NextFunction } from 'express';
 import type { User } from '../types';
 
 export type UserRole = 'user' | 'admin' | 'superadmin';
 
-export const requireRole = (requiredRole: UserRole): MiddlewareHandler => {
-  return async (c, next) => {
-    const user = c.get('user') as User;
+export const requireRole = (requiredRole: UserRole) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const user = req.user as User;
 
     if (!user) {
-      return c.json({ error: 'Authentication required' }, 401);
+      res.status(401).json({ error: 'Authentication required' });
+      return;
     }
 
     const roleHierarchy: Record<UserRole, number> = {
@@ -18,12 +19,13 @@ export const requireRole = (requiredRole: UserRole): MiddlewareHandler => {
     };
 
     if (roleHierarchy[user.role] < roleHierarchy[requiredRole]) {
-      return c.json({ error: 'Insufficient permissions' }, 403);
+      res.status(403).json({ error: 'Insufficient permissions' });
+      return;
     }
 
-    return await next();
+    next();
   };
 };
 
-export const requireAdmin: MiddlewareHandler = requireRole('admin');
-export const requireSuperadmin: MiddlewareHandler = requireRole('superadmin');
+export const requireAdmin = requireRole('admin');
+export const requireSuperadmin = requireRole('superadmin');

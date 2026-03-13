@@ -1,3 +1,5 @@
-import { app as openapiApp } from '../openapi';
+import { Router } from 'express';
 
-export default openapiApp;
+// This route is no longer used directly; OpenAPI auth is handled by authMiddleware.
+const openapiAuthRoutes = Router();
+export default openapiAuthRoutes;

@@ -1,90 +1,98 @@
-import type { Context } from 'hono';
+import type { Request, Response } from 'express';
 import { TagService } from '../services/TagService';
 import type { CreateTagRequest } from '../types';
 
 export class TagController {
-  static async getAll(c: Context) {
+  static async getAll(_req: Request, res: Response): Promise<void> {
     try {
       const tags = await TagService.getAllTags();
-      return c.json(tags);
+      res.json(tags);
     } catch (error) {
       console.error('Controller error - getAll tags:', error);
-      return c.json({ error: 'Internal server error' }, 500);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  static async get(c: Context) {
+  static async get(req: Request, res: Response): Promise<void> {
     try {
-      const id = parseInt(c.req.param('id'));
+      const id = parseInt(req.params.id as string);
       if (isNaN(id)) {
-        return c.json({ error: 'Invalid tag ID' }, 400);
+        res.status(400).json({ error: 'Invalid tag ID' });
+        return;
       }
 
       const tag = await TagService.getTagById(id);
-      return c.json(tag);
+      res.json(tag);
     } catch (error) {
       console.error('Controller error - get tag:', error);
       if (error instanceof Error && error.message === 'Tag not found') {
-        return c.json({ error: error.message }, 404);
+        res.status(404).json({ error: error.message });
+        return;
       }
-      return c.json({ error: 'Internal server error' }, 500);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  static async create(c: Context) {
+  static async create(req: Request, res: Response): Promise<void> {
     try {
-      const body: CreateTagRequest = await c.req.json();
+      const body: CreateTagRequest = req.body;
 
       const tag = await TagService.createTag(body);
-      return c.json(tag, 201);
+      res.status(201).json(tag);
     } catch (error) {
       console.error('Controller error - create tag:', error);
       if (error instanceof Error && error.message.includes('Validation error')) {
-        return c.json({ error: error.message }, 400);
+        res.status(400).json({ error: error.message });
+        return;
       }
       if (error instanceof Error && error.message === 'Tag with this name already exists') {
-        return c.json({ error: error.message }, 409);
+        res.status(409).json({ error: error.message });
+        return;
       }
-      return c.json({ error: 'Internal server error' }, 500);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  static async update(c: Context) {
+  static async update(req: Request, res: Response): Promise<void> {
     try {
-      const id = parseInt(c.req.param('id'));
+      const id = parseInt(req.params.id as string);
       if (isNaN(id)) {
-        return c.json({ error: 'Invalid tag ID' }, 400);
+        res.status(400).json({ error: 'Invalid tag ID' });
+        return;
       }
 
-      const body: Partial<CreateTagRequest> = await c.req.json();
+      const body: Partial<CreateTagRequest> = req.body;
 
       const tag = await TagService.updateTag(id, body);
-      return c.json(tag);
+      res.json(tag);
     } catch (error) {
       console.error('Controller error - update tag:', error);
       if (error instanceof Error && (error.message === 'Tag not found or no changes made' || error.message.includes('Validation error') || error.message === 'Tag with this name already exists')) {
         const status = error.message === 'Tag not found or no changes made' ? 404 : 400;
-        return c.json({ error: error.message }, status);
+        res.status(status).json({ error: error.message });
+        return;
       }
-      return c.json({ error: 'Internal server error' }, 500);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  static async delete(c: Context) {
+  static async delete(req: Request, res: Response): Promise<void> {
     try {
-      const id = parseInt(c.req.param('id'));
+      const id = parseInt(req.params.id as string);
       if (isNaN(id)) {
-        return c.json({ error: 'Invalid tag ID' }, 400);
+        res.status(400).json({ error: 'Invalid tag ID' });
+        return;
       }
 
       await TagService.deleteTag(id);
-      return c.json({ message: 'Tag deleted successfully' });
+      res.json({ message: 'Tag deleted successfully' });
     } catch (error) {
       console.error('Controller error - delete tag:', error);
       if (error instanceof Error && error.message === 'Tag not found') {
-        return c.json({ error: error.message }, 404);
+        res.status(404).json({ error: error.message });
+        return;
       }
-      return c.json({ error: 'Internal server error' }, 500);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 }

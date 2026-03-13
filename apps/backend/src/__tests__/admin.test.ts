@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { auth, testData, parseResponse } from '../test/utils';
+import { auth, testData } from '../test/utils';
+import request from 'supertest';
 import app from '../app';
 
 describe('Admin User Management API', () => {
@@ -41,21 +42,16 @@ describe('Admin User Management API', () => {
 
   describe('GET /api/admin/users', () => {
     test('admin can get all users', async () => {
-      const result = await app.request('/api/admin/users', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${adminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app)
+        .get('/api/admin/users')
+        .set('Authorization', `Bearer ${adminUser.accessToken}`);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(Array.isArray(data)).toBe(true);
-      expect(data.length).toBeGreaterThanOrEqual(3); // At least our 3 test users
+      expect(Array.isArray(result.body)).toBe(true);
+      expect(result.body.length).toBeGreaterThanOrEqual(3); // At least our 3 test users
 
       // Check that user data includes required fields
-      const user = data.find((u: any) => u.id === adminUser.data.user.id);
+      const user = result.body.find((u: any) => u.id === adminUser.data.user.id);
       expect(user).toBeDefined();
       expect(user.email).toBe(adminUser.data.user.email);
       expect(user.name).toBe(adminUser.data.user.name);
@@ -64,45 +60,29 @@ describe('Admin User Management API', () => {
     });
 
     test('superadmin can get all users', async () => {
-      const result = await app.request('/api/admin/users', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${superAdminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app)
+        .get('/api/admin/users')
+        .set('Authorization', `Bearer ${superAdminUser.accessToken}`);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(Array.isArray(data)).toBe(true);
-      expect(data.length).toBeGreaterThanOrEqual(3);
+      expect(Array.isArray(result.body)).toBe(true);
+      expect(result.body.length).toBeGreaterThanOrEqual(3);
     });
 
     test('regular user cannot access admin endpoint', async () => {
-      const result = await app.request('/api/admin/users', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${regularUser.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app)
+        .get('/api/admin/users')
+        .set('Authorization', `Bearer ${regularUser.accessToken}`);
 
       expect(result.status).toBe(403);
-      const data = await parseResponse(result);
-      expect(data.error).toContain('Insufficient permissions');
+      expect(result.body.error).toContain('Insufficient permissions');
     });
 
     test('unauthenticated user cannot access admin endpoint', async () => {
-      const result = await app.request('/api/admin/users', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app).get('/api/admin/users');
 
       expect(result.status).toBe(401);
-      const data = await parseResponse(result);
-      expect(data.error).toBe('Unauthorized - missing token');
+      expect(result.body.error).toBe('Unauthorized - missing token');
     });
   });
 
@@ -110,242 +90,167 @@ describe('Admin User Management API', () => {
     test('admin can update user name', async () => {
       const updateData = { name: 'Updated by Admin' };
 
-      const result = await app.request(`/api/admin/users/${regularUser.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${adminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/admin/users/${regularUser.data.user.id}`)
+        .set('Authorization', `Bearer ${adminUser.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(data.name).toBe('Updated by Admin');
-      expect(data.email).toBe(regularUser.data.user.email);
+      expect(result.body.name).toBe('Updated by Admin');
+      expect(result.body.email).toBe(regularUser.data.user.email);
     });
 
     test('admin can update user email', async () => {
       const updateData = { email: `updated_${Date.now()}@example.com` };
 
-      const result = await app.request(`/api/admin/users/${regularUser.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${adminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/admin/users/${regularUser.data.user.id}`)
+        .set('Authorization', `Bearer ${adminUser.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(data.email).toBe(updateData.email);
+      expect(result.body.email).toBe(updateData.email);
     });
 
     test('admin cannot update user role to superadmin', async () => {
       const updateData = { role: 'superadmin' };
 
-      const result = await app.request(`/api/admin/users/${regularUser.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${adminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/admin/users/${regularUser.data.user.id}`)
+        .set('Authorization', `Bearer ${adminUser.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(403);
-      const data = await parseResponse(result);
-      expect(data.error).toContain('Insufficient permissions');
+      expect(result.body.error).toContain('Insufficient permissions');
     });
 
     test('admin cannot update their own role', async () => {
       const updateData = { role: 'superadmin' };
 
-      const result = await app.request(`/api/admin/users/${adminUser.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${adminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/admin/users/${adminUser.data.user.id}`)
+        .set('Authorization', `Bearer ${adminUser.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(403);
-      const data = await parseResponse(result);
-      expect(data.error).toContain('Insufficient permissions');
+      expect(result.body.error).toContain('Insufficient permissions');
     });
 
     test('superadmin can update user role to admin', async () => {
       const updateData = { role: 'admin' };
 
-      const result = await app.request(`/api/admin/users/${regularUser.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${superAdminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/admin/users/${regularUser.data.user.id}`)
+        .set('Authorization', `Bearer ${superAdminUser.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(data.role).toBe('admin');
+      expect(result.body.role).toBe('admin');
     });
 
     test('superadmin can update user role to superadmin', async () => {
       const updateData = { role: 'superadmin' };
 
-      const result = await app.request(`/api/admin/users/${regularUser.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${superAdminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/admin/users/${regularUser.data.user.id}`)
+        .set('Authorization', `Bearer ${superAdminUser.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(data.role).toBe('superadmin');
+      expect(result.body.role).toBe('superadmin');
     });
 
     test('fails with invalid user ID', async () => {
       const updateData = { name: 'Test Name' };
 
-      const result = await app.request('/api/admin/users/invalid', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${adminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put('/api/admin/users/invalid')
+        .set('Authorization', `Bearer ${adminUser.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(400);
-      const data = await parseResponse(result);
-      expect(data.error).toBe('Invalid user ID');
+      expect(result.body.error).toBe('Invalid user ID');
     });
 
     test('fails when no fields provided', async () => {
-      const result = await app.request(`/api/admin/users/${regularUser.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${adminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({})
-      });
+      const result = await request(app)
+        .put(`/api/admin/users/${regularUser.data.user.id}`)
+        .set('Authorization', `Bearer ${adminUser.accessToken}`)
+        .send({});
 
       expect(result.status).toBe(400);
-      const data = await parseResponse(result);
-      expect(data.error).toContain('At least one field must be provided');
+      expect(result.body.error).toContain('At least one field must be provided');
     });
 
     test('fails with invalid role', async () => {
       const updateData = { role: 'invalid_role' };
 
-      const result = await app.request(`/api/admin/users/${regularUser.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${adminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/admin/users/${regularUser.data.user.id}`)
+        .set('Authorization', `Bearer ${adminUser.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(400);
-      const data = await parseResponse(result);
-      expect(data.error).toBe('Invalid role');
+      expect(result.body.error).toBe('Invalid role');
     });
 
     test('regular user cannot update users', async () => {
       const updateData = { name: 'Hacked Name' };
 
-      const result = await app.request(`/api/admin/users/${regularUser.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${regularUser.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/admin/users/${regularUser.data.user.id}`)
+        .set('Authorization', `Bearer ${regularUser.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(403);
-      const data = await parseResponse(result);
-      expect(data.error).toContain('Insufficient permissions');
+      expect(result.body.error).toContain('Insufficient permissions');
     });
   });
 
   describe('DELETE /api/admin/users/:id', () => {
     test('superadmin can delete user', async () => {
-      const result = await app.request(`/api/admin/users/${regularUser.data.user.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${superAdminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app)
+        .delete(`/api/admin/users/${regularUser.data.user.id}`)
+        .set('Authorization', `Bearer ${superAdminUser.accessToken}`);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(data.message).toBe('User deleted successfully');
+      expect(result.body.message).toBe('User deleted successfully');
     });
 
     test('admin cannot delete users', async () => {
-      const result = await app.request(`/api/admin/users/${regularUser.data.user.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${adminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app)
+        .delete(`/api/admin/users/${regularUser.data.user.id}`)
+        .set('Authorization', `Bearer ${adminUser.accessToken}`);
 
       expect(result.status).toBe(403);
-      const data = await parseResponse(result);
-      expect(data.error).toContain('Insufficient permissions');
+      expect(result.body.error).toContain('Insufficient permissions');
     });
 
     test('superadmin cannot delete themselves', async () => {
-      const result = await app.request(`/api/admin/users/${superAdminUser.data.user.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${superAdminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app)
+        .delete(`/api/admin/users/${superAdminUser.data.user.id}`)
+        .set('Authorization', `Bearer ${superAdminUser.accessToken}`);
 
       expect(result.status).toBe(400);
-      const data = await parseResponse(result);
-      expect(data.error).toContain('Cannot delete your own account');
+      expect(result.body.error).toContain('Cannot delete your own account');
     });
 
     test('fails with invalid user ID', async () => {
-      const result = await app.request('/api/admin/users/invalid', {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${superAdminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app)
+        .delete('/api/admin/users/invalid')
+        .set('Authorization', `Bearer ${superAdminUser.accessToken}`);
 
       expect(result.status).toBe(400);
-      const data = await parseResponse(result);
-      expect(data.error).toBe('Invalid user ID');
+      expect(result.body.error).toBe('Invalid user ID');
     });
 
     test('regular user cannot delete users', async () => {
-      const result = await app.request(`/api/admin/users/${regularUser.data.user.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${regularUser.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app)
+        .delete(`/api/admin/users/${regularUser.data.user.id}`)
+        .set('Authorization', `Bearer ${regularUser.accessToken}`);
 
       expect(result.status).toBe(403);
-      const data = await parseResponse(result);
-      expect(data.error).toContain('Insufficient permissions');
+      expect(result.body.error).toContain('Insufficient permissions');
     });
   });
 });

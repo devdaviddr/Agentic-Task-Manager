@@ -1,48 +1,48 @@
-import type { MiddlewareHandler } from 'hono';
+import type { Request, Response, NextFunction } from 'express';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-export const errorHandler: MiddlewareHandler = async (c, next) => {
-  try {
-    await next();
-  } catch (error) {
-    console.error('Unhandled error:', error);
+export const errorHandler = (error: Error, _req: Request, res: Response, _next: NextFunction): void => {
+  console.error('Unhandled error:', error);
 
-    // In production, don't leak error details
-    const errorMessage = isProduction
-      ? 'Internal server error'
-      : (error as Error).message;
+  // In production, don't leak error details
+  const errorMessage = isProduction
+    ? 'Internal server error'
+    : error.message;
 
-    return c.json({
-      error: errorMessage,
-      ...(isProduction ? {} : { stack: (error as Error).stack })
-    }, 500);
-  }
+  res.status(500).json({
+    error: errorMessage,
+    ...(isProduction ? {} : { stack: error.stack })
+  });
 };
 
-export const logger: MiddlewareHandler = async (c, next) => {
+export const logger = (req: Request, res: Response, next: NextFunction): void => {
   const start = Date.now();
-  await next();
-  const end = Date.now();
-  const duration = end - start;
 
-  const logData = {
-    method: c.req.method,
-    path: c.req.path,
-    status: c.res.status,
-    duration: `${duration}ms`,
-    ip: c.req.header('CF-Connecting-IP') ||
-        c.req.header('X-Forwarded-For') ||
-        c.req.header('X-Real-IP') ||
-        'unknown',
-    userAgent: c.req.header('User-Agent') || 'unknown'
-  };
+  res.on('finish', () => {
+    const duration = Date.now() - start;
 
-  if (duration > 1000) {
-    console.warn('⚠️  Slow request:', logData);
-  } else {
-    console.log(`${logData.method} ${logData.path} - ${logData.status} - ${logData.duration}`);
-  }
+    const logData = {
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      duration: `${duration}ms`,
+      ip: req.headers['cf-connecting-ip'] as string ||
+          req.headers['x-forwarded-for'] as string ||
+          req.headers['x-real-ip'] as string ||
+          req.ip ||
+          'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown'
+    };
+
+    if (duration > 1000) {
+      console.warn('⚠️  Slow request:', logData);
+    } else {
+      console.log(`${logData.method} ${logData.path} - ${logData.status} - ${logData.duration}`);
+    }
+  });
+
+  next();
 };
 
 export { requireRole, requireAdmin, requireSuperadmin } from './roleAuth';

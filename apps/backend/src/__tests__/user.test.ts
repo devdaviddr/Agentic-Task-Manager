@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { auth, testData, parseResponse } from '../test/utils';
+import { auth, testData } from '../test/utils';
+import request from 'supertest';
 import app from '../app';
 
 describe('User Profile API', () => {
@@ -36,41 +37,31 @@ describe('User Profile API', () => {
 
   describe('GET /api/users', () => {
     test('regular user can get their own profile', async () => {
-      const result = await app.request('/api/users', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${user1.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app)
+        .get('/api/users')
+        .set('Authorization', `Bearer ${user1.accessToken}`);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(Array.isArray(data)).toBe(true);
-      expect(data).toHaveLength(1);
-      expect(data[0].id).toBe(user1.data.user.id);
-      expect(data[0].email).toBe(user1.data.user.email);
-      expect(data[0].name).toBe(user1.data.user.name);
-      expect(data[0].role).toBe('user');
-      expect(data[0]).not.toHaveProperty('password_hash');
+      expect(Array.isArray(result.body)).toBe(true);
+      expect(result.body).toHaveLength(1);
+      expect(result.body[0].id).toBe(user1.data.user.id);
+      expect(result.body[0].email).toBe(user1.data.user.email);
+      expect(result.body[0].name).toBe(user1.data.user.name);
+      expect(result.body[0].role).toBe('user');
+      expect(result.body[0]).not.toHaveProperty('password_hash');
     });
 
     test('admin can get all users', async () => {
-      const result = await app.request('/api/users', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${adminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app)
+        .get('/api/users')
+        .set('Authorization', `Bearer ${adminUser.accessToken}`);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(Array.isArray(data)).toBe(true);
-      expect(data.length).toBeGreaterThanOrEqual(3); // At least our 3 test users
+      expect(Array.isArray(result.body)).toBe(true);
+      expect(result.body.length).toBeGreaterThanOrEqual(3); // At least our 3 test users
 
       // Check that all users are included
-      const userIds = data.map((u: any) => u.id);
+      const userIds = result.body.map((u: any) => u.id);
       expect(userIds).toContain(user1.data.user.id);
       expect(userIds).toContain(user2.data.user.id);
       expect(userIds).toContain(adminUser.data.user.id);
@@ -88,31 +79,20 @@ describe('User Profile API', () => {
       const pool = getTestPool();
       await pool.query('UPDATE users SET role = $1 WHERE id = $2', ['superadmin', superAdminUser.data.user.id]);
 
-      const result = await app.request('/api/users', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${superAdminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app)
+        .get('/api/users')
+        .set('Authorization', `Bearer ${superAdminUser.accessToken}`);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(Array.isArray(data)).toBe(true);
-      expect(data.length).toBeGreaterThanOrEqual(4); // At least our 4 test users
+      expect(Array.isArray(result.body)).toBe(true);
+      expect(result.body.length).toBeGreaterThanOrEqual(4); // At least our 4 test users
     });
 
     test('unauthenticated user cannot access users endpoint', async () => {
-      const result = await app.request('/api/users', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await request(app).get('/api/users');
 
       expect(result.status).toBe(401);
-      const data = await parseResponse(result);
-      expect(data.error).toBe('Unauthorized - missing token');
+      expect(result.body.error).toBe('Unauthorized - missing token');
     });
   });
 
@@ -120,102 +100,73 @@ describe('User Profile API', () => {
     test('user can update their own name', async () => {
       const updateData = { name: 'Updated Name' };
 
-      const result = await app.request(`/api/users/${user1.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${user1.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/users/${user1.data.user.id}`)
+        .set('Authorization', `Bearer ${user1.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(data.name).toBe('Updated Name');
-      expect(data.email).toBe(user1.data.user.email);
-      expect(data.role).toBe('user');
+      expect(result.body.name).toBe('Updated Name');
+      expect(result.body.email).toBe(user1.data.user.email);
+      expect(result.body.role).toBe('user');
     });
 
     test('user can update their own email', async () => {
       const updateData = { email: `updated_${Date.now()}@example.com` };
 
-      const result = await app.request(`/api/users/${user1.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${user1.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/users/${user1.data.user.id}`)
+        .set('Authorization', `Bearer ${user1.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(data.email).toBe(updateData.email);
+      expect(result.body.email).toBe(updateData.email);
     });
 
     test('user cannot update another user profile', async () => {
       const updateData = { name: 'Hacked Name' };
 
-      const result = await app.request(`/api/users/${user2.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${user1.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/users/${user2.data.user.id}`)
+        .set('Authorization', `Bearer ${user1.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(403);
-      const data = await parseResponse(result);
-      expect(data.error).toBe('Unauthorized');
+      expect(result.body.error).toBe('Unauthorized');
     });
 
     test('user cannot update their role', async () => {
       const updateData = { role: 'admin' };
 
-      const result = await app.request(`/api/users/${user1.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${user1.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/users/${user1.data.user.id}`)
+        .set('Authorization', `Bearer ${user1.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(403);
-      const data = await parseResponse(result);
-      expect(data.error).toBe('Cannot update role through this endpoint');
+      expect(result.body.error).toBe('Cannot update role through this endpoint');
     });
 
     test('admin can update their own profile', async () => {
       const updateData = { name: 'Admin Updated Name' };
 
-      const result = await app.request(`/api/users/${adminUser.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${adminUser.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/users/${adminUser.data.user.id}`)
+        .set('Authorization', `Bearer ${adminUser.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(200);
-      const data = await parseResponse(result);
-      expect(data.name).toBe('Admin Updated Name');
-      expect(data.role).toBe('admin');
+      expect(result.body.name).toBe('Admin Updated Name');
+      expect(result.body.role).toBe('admin');
     });
 
     test('fails with invalid user ID', async () => {
       const updateData = { name: 'Test Name' };
 
-      const result = await app.request('/api/users/invalid', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${user1.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put('/api/users/invalid')
+        .set('Authorization', `Bearer ${user1.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(403); // User trying to update invalid user ID
     });
@@ -223,14 +174,10 @@ describe('User Profile API', () => {
     test('fails when user does not exist', async () => {
       const updateData = { name: 'Test Name' };
 
-      const result = await app.request('/api/users/99999', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${user1.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put('/api/users/99999')
+        .set('Authorization', `Bearer ${user1.accessToken}`)
+        .send(updateData);
 
       expect(result.status).toBe(403); // User trying to update non-existent user ID
     });
@@ -238,17 +185,12 @@ describe('User Profile API', () => {
     test('unauthenticated user cannot update profile', async () => {
       const updateData = { name: 'Hacked Name' };
 
-      const result = await app.request(`/api/users/${user1.data.user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const result = await request(app)
+        .put(`/api/users/${user1.data.user.id}`)
+        .send(updateData);
 
       expect(result.status).toBe(401);
-      const data = await parseResponse(result);
-      expect(data.error).toBe('Unauthorized - missing token');
+      expect(result.body.error).toBe('Unauthorized - missing token');
     });
   });
 });
