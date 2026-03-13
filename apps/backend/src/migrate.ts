@@ -15,12 +15,25 @@ async function runMigrations() {
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255),
+        firebase_uid VARCHAR(128) UNIQUE,
         name VARCHAR(255),
         role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'admin', 'superadmin')),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+    `);
+
+    // Add firebase_uid column to existing users table if it doesn't exist
+    await pool.query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(128) UNIQUE;
+    `);
+
+    // Make password_hash nullable for Firebase-only users
+    await pool.query(`
+      ALTER TABLE users
+      ALTER COLUMN password_hash DROP NOT NULL;
     `);
 
     // Add role column to existing users table if it doesn't exist

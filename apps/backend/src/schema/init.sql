@@ -17,7 +17,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at DESC);
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255),
+  firebase_uid VARCHAR(128) UNIQUE,
   name VARCHAR(255),
   role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'admin', 'superadmin')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

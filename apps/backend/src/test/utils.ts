@@ -125,105 +125,43 @@ export const testData = {
 // Authentication helpers
 export const auth = {
   /**
-   * Register a new user and return user data + tokens
+   * Create (or retrieve) a test user via a simulated Firebase ID token.
+   * The /auth/me endpoint auto-provisions the user on first call.
    */
-  async register(userData = testData.validUser) {
+  async register(userData?: { email?: string; name?: string; password?: string }) {
     await delay(10); // Throttle to reduce CPU load
-    const res = await app.request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(userData),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    const data = await parseResponse(res);
-    
-    // In test environments, tokens are returned in response body
-    return {
-      status: res.status,
-      data,
-      accessToken: data.token,
-      refreshToken: data.refreshToken,
-    };
-  },
+    const email = userData?.email ?? `testuser${Date.now()}${Math.random()}@example.com`;
+    const name = userData?.name ?? 'Test User';
+    const uid = `test-uid-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    // Format understood by the test FirebaseAdminService override
+    const token = `test-firebase-token:${uid}:${email}:${name}`;
 
-  /**
-   * Login a user and return user data + tokens
-   */
-  async login(email = testData.validUser.email, password = testData.validUser.password) {
-    await delay(10); // Throttle to reduce CPU load
-    const res = await app.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    const data = await parseResponse(res);
-    
-    // In test environments, tokens are returned in response body
-    return {
-      status: res.status,
-      data,
-      accessToken: data.token,
-      refreshToken: data.refreshToken,
-    };
-  },
-
-  /**
-   * Get current user profile using token
-   */
-  async getMe(accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request('/auth/me', {
       method: 'GET',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: { Authorization: `Bearer ${token}` },
     });
     const data = await parseResponse(res);
+
     return {
       status: res.status,
       data,
+      accessToken: token,
+      refreshToken: '',
     };
   },
 
   /**
-   * Logout user (invalidate tokens)
+   * Get current user profile using a Firebase ID token
    */
-  async logout(accessToken?: string, refreshToken?: string) {
-    const cookieParts = [];
-    if (accessToken) cookieParts.push(`accessToken=${accessToken}`);
-    if (refreshToken) cookieParts.push(`refreshToken=${refreshToken}`);
-    const cookieHeader = cookieParts.join('; ');
-
-    const res = await app.request('/auth/logout', {
-      method: 'POST',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+  async getMe(accessToken?: string) {
+    const res = await app.request('/auth/me', {
+      method: 'GET',
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
       status: res.status,
       data,
-    };
-  },
-
-  /**
-   * Refresh access token
-   */
-  async refresh(accessToken?: string, refreshToken?: string) {
-    const cookieParts = [];
-    if (accessToken) cookieParts.push(`accessToken=${accessToken}`);
-    if (refreshToken) cookieParts.push(`refreshToken=${refreshToken}`);
-    const cookieHeader = cookieParts.join('; ');
-
-    const res = await app.request('/auth/refresh', {
-      method: 'POST',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
-    });
-    const data = await parseResponse(res);
-    
-    // In test environments, tokens are returned in response body
-    // In production, they would be in HTTP-only cookies
-    return {
-      status: res.status,
-      data,
-      accessToken: data.token,
-      refreshToken: data.refreshToken,
     };
   },
 };
@@ -234,13 +172,12 @@ export const boards = {
    * Create a new board
    */
   async create(boardData = testData.validBoard, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request('/api/boards', {
       method: 'POST',
       body: JSON.stringify(boardData),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -254,10 +191,9 @@ export const boards = {
    * Get all boards for authenticated user
    */
   async getAll(accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request('/api/boards', {
       method: 'GET',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -270,10 +206,9 @@ export const boards = {
    * Get a specific board by ID
    */
   async getById(boardId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/boards/${boardId}`, {
       method: 'GET',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -286,10 +221,9 @@ export const boards = {
    * Get board with all its columns
    */
   async getWithColumns(boardId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/boards/${boardId}/full`, {
       method: 'GET',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -302,13 +236,12 @@ export const boards = {
    * Update a board
    */
   async update(boardId: number, updates: any, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/boards/${boardId}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -322,10 +255,9 @@ export const boards = {
    * Delete a board
    */
   async delete(boardId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/boards/${boardId}`, {
       method: 'DELETE',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -341,13 +273,12 @@ export const columns = {
    * Create a new column in a board
    */
   async create(boardId: number, columnData: any, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/boards/${boardId}/columns`, {
       method: 'POST',
       body: JSON.stringify(columnData),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -361,10 +292,9 @@ export const columns = {
    * Get all columns for a board
    */
   async getAll(boardId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/boards/${boardId}/columns`, {
       method: 'GET',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -377,10 +307,9 @@ export const columns = {
    * Get a specific column by ID (Note: no boardId needed in the URL)
    */
   async getById(columnId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/columns/${columnId}`, {
       method: 'GET',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -393,13 +322,12 @@ export const columns = {
    * Update a column (Note: no boardId needed in the URL)
    */
   async update(columnId: number, updates: any, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/columns/${columnId}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -413,10 +341,9 @@ export const columns = {
    * Delete a column (Note: no boardId needed in the URL)
    */
   async delete(columnId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/columns/${columnId}`, {
       method: 'DELETE',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -432,13 +359,12 @@ export const items = {
    * Create a new item in a column
    */
   async create(columnId: number, itemData: any, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/columns/${columnId}/items`, {
       method: 'POST',
       body: JSON.stringify(itemData),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -452,10 +378,9 @@ export const items = {
    * Get a specific item by ID
    */
   async getById(itemId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/items/${itemId}`, {
       method: 'GET',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -468,10 +393,9 @@ export const items = {
    * Get all items for a column
    */
   async getByColumn(columnId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/columns/${columnId}/items`, {
       method: 'GET',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -484,13 +408,12 @@ export const items = {
    * Update an item
    */
   async update(itemId: number, updates: any, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/items/${itemId}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -504,13 +427,12 @@ export const items = {
    * Move an item to a different column/position
    */
   async move(itemId: number, moveData: any, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/items/${itemId}/move`, {
       method: 'PUT',
       body: JSON.stringify(moveData),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -524,13 +446,12 @@ export const items = {
    * Archive/unarchive an item
    */
   async archive(itemId: number, archived: boolean, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/items/${itemId}/archive`, {
       method: 'PUT',
       body: JSON.stringify({ archived }),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -544,10 +465,9 @@ export const items = {
    * Delete an item
    */
   async delete(itemId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/items/${itemId}`, {
       method: 'DELETE',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -560,13 +480,12 @@ export const items = {
    * Assign a user to an item
    */
   async assignUser(itemId: number, userId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/items/${itemId}/users`, {
       method: 'POST',
       body: JSON.stringify({ user_id: userId }),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -580,10 +499,9 @@ export const items = {
    * Remove a user from an item
    */
   async removeUser(itemId: number, userId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/items/${itemId}/users/${userId}`, {
       method: 'DELETE',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -599,13 +517,12 @@ export const tags = {
    * Create a new tag
    */
   async create(tagData: any, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request('/api/tags', {
       method: 'POST',
       body: JSON.stringify(tagData),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -619,10 +536,9 @@ export const tags = {
    * Get all tags
    */
   async getAll(accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request('/api/tags', {
       method: 'GET',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -635,10 +551,9 @@ export const tags = {
    * Get a specific tag by ID
    */
   async getById(tagId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/tags/${tagId}`, {
       method: 'GET',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -651,13 +566,12 @@ export const tags = {
    * Update a tag
    */
   async update(tagId: number, updates: any, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/tags/${tagId}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -671,10 +585,9 @@ export const tags = {
    * Delete a tag
    */
   async delete(tagId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/tags/${tagId}`, {
       method: 'DELETE',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -690,13 +603,12 @@ export const tasks = {
    * Create a new task
    */
   async create(taskData: any, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request('/api/tasks', {
       method: 'POST',
       body: JSON.stringify(taskData),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -710,10 +622,9 @@ export const tasks = {
    * Get all tasks for authenticated user
    */
   async getAll(accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request('/api/tasks', {
       method: 'GET',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -726,10 +637,9 @@ export const tasks = {
    * Get a specific task by ID
    */
   async getById(taskId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/tasks/${taskId}`, {
       method: 'GET',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
@@ -742,13 +652,12 @@ export const tasks = {
    * Update a task
    */
   async update(taskId: number, updates: any, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/tasks/${taskId}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader && { Cookie: cookieHeader }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
     });
     const data = await parseResponse(res);
@@ -762,10 +671,9 @@ export const tasks = {
    * Delete a task
    */
   async delete(taskId: number, accessToken?: string) {
-    const cookieHeader = accessToken ? `accessToken=${accessToken}` : '';
     const res = await app.request(`/api/tasks/${taskId}`, {
       method: 'DELETE',
-      headers: cookieHeader ? { Cookie: cookieHeader } : {},
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     const data = await parseResponse(res);
     return {
