@@ -26,9 +26,13 @@ authRoutes.get('/me', async (c) => {
     return c.json({ error: 'Invalid token' }, 401);
   }
 
+  if (!decoded.email) {
+    return c.json({ error: 'Firebase token missing email claim' }, 400);
+  }
+
   const user = await UserModel.findOrCreateByFirebaseUid(
     decoded.uid,
-    decoded.email ?? '',
+    decoded.email,
     decoded.name,
   );
 

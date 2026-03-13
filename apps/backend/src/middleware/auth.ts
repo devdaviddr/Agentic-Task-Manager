@@ -18,10 +18,14 @@ export const authMiddleware: MiddlewareHandler = async (c, next) => {
     return c.json({ error: 'Invalid token' }, 401);
   }
 
+  if (!decoded.email) {
+    return c.json({ error: 'Firebase token missing email claim' }, 400);
+  }
+
   // Find or create the user based on Firebase UID
   const user = await UserModel.findOrCreateByFirebaseUid(
     decoded.uid,
-    decoded.email ?? '',
+    decoded.email,
     decoded.name,
   );
 

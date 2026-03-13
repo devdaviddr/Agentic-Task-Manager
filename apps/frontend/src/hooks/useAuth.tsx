@@ -65,7 +65,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           } else {
             setUser(null);
           }
-        } catch {
+        } catch (err) {
+          console.error('Failed to fetch user profile:', err);
           setUser(null);
         }
       } else {

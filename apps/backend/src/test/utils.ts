@@ -3,18 +3,19 @@
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://postgres:password@localhost:5432/taskmanager_test';
 }
-if (!process.env.JWT_SECRET) {
-  process.env.JWT_SECRET = 'test-jwt-secret';
-}
 if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = 'test';
 }
 if (!process.env.DISABLE_RATE_LIMITING) {
   process.env.DISABLE_RATE_LIMITING = 'true'; // Disable rate limiting in tests
 }
+if (!process.env.FIREBASE_PROJECT_ID) {
+  process.env.FIREBASE_PROJECT_ID = 'test-project';
+}
 
 import { testPool } from './setup';
 import app from '../app';
+import { TEST_FIREBASE_TOKEN_PREFIX } from './test-constants';
 
 // Export test utilities
 export { testPool, teardownTestDatabase, testConnection } from './setup';
@@ -134,7 +135,7 @@ export const auth = {
     const name = userData?.name ?? 'Test User';
     const uid = `test-uid-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     // Format understood by the test FirebaseAdminService override
-    const token = `test-firebase-token:${uid}:${email}:${name}`;
+    const token = `${TEST_FIREBASE_TOKEN_PREFIX}${uid}:${email}:${name}`;
 
     const res = await app.request('/auth/me', {
       method: 'GET',
