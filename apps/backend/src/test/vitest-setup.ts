@@ -6,10 +6,43 @@ if (!process.env.DATABASE_URL) {
 process.env.JWT_SECRET = 'test-jwt-secret';
 process.env.NODE_ENV = 'test';
 process.env.DISABLE_RATE_LIMITING = 'true';
+process.env.FIREBASE_PROJECT_ID = 'test-project';
 
 import { getTestPool, teardownTestDatabase } from './setup';
 import { globalTeardown } from './global-setup';
-import { beforeEach } from 'vitest';
+import { beforeAll, beforeEach } from 'vitest';
+import { FirebaseAdminService } from '../services/FirebaseAdminService';
+import type { DecodedIdToken } from 'firebase-admin/auth';
+import { TEST_FIREBASE_TOKEN_PREFIX } from './test-constants';
+
+// Install Firebase test token override:
+// Tokens of the form "test-firebase-token:{uid}:{email}:{name}" bypass real Firebase verification.
+beforeAll(() => {
+  FirebaseAdminService._setTestVerifyOverride(async (token: string) => {
+    if (token.startsWith(TEST_FIREBASE_TOKEN_PREFIX)) {
+      const rest = token.slice(TEST_FIREBASE_TOKEN_PREFIX.length);
+      const uidEnd = rest.indexOf(':');
+      const uid = uidEnd === -1 ? rest : rest.slice(0, uidEnd);
+      const afterUid = uidEnd === -1 ? '' : rest.slice(uidEnd + 1);
+      const emailEnd = afterUid.indexOf(':');
+      const email = emailEnd === -1 ? afterUid : afterUid.slice(0, emailEnd);
+      const name = emailEnd === -1 ? undefined : afterUid.slice(emailEnd + 1);
+      return {
+        uid,
+        email: email || `${uid}@test.example.com`,
+        name: name || 'Test User',
+        aud: 'test-project',
+        auth_time: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+        iss: 'https://securetoken.google.com/test-project',
+        sub: uid,
+        firebase: { identities: {}, sign_in_provider: 'google.com' },
+      } as unknown as DecodedIdToken;
+    }
+    return null;
+  });
+});
 
 // Clean up test data before each test
 beforeEach(async () => {
@@ -50,5 +83,6 @@ process.on('exit', async () => {
   await globalTeardown();
   console.log('✅ Test environment fully cleaned up');
 });
+
 
 

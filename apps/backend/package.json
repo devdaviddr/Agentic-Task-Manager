@@ -17,6 +17,7 @@
     "@types/pg": "^8.15.5",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",
+    "firebase-admin": "^13.7.0",
     "hono": "^4.0.0",
     "hono-pino": "^0.10.3",
     "hono-rate-limiter": "^0.4.2",

@@ -1,45 +1,41 @@
 import { Context, MiddlewareHandler } from 'hono';
-import { AuthService } from '../services/AuthService';
+import { FirebaseAdminService } from '../services/FirebaseAdminService';
+import { UserModel } from '../models/User';
 
 /**
- * OpenAPI Bearer token authentication middleware
- * Extracts JWT token from Authorization header and validates it
- * Attaches user data to context if valid
+ * OpenAPI Bearer token authentication middleware.
+ * Verifies Firebase ID tokens and attaches the user to the context.
  */
 export const openapiAuth: MiddlewareHandler = async (c: Context, next) => {
-  // Get Authorization header
   const authHeader = c.req.header('Authorization');
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // Don't block request, let the route handle authentication
-    // This allows unauthenticated routes to work
+    // Allow unauthenticated routes to proceed
     return next();
   }
 
-  // Extract token from "Bearer <token>"
   const token = authHeader.slice(7);
-
-  // Verify token
-  const payload = AuthService.verifyToken(token);
-  if (!payload) {
+  const decoded = await FirebaseAdminService.verifyIdToken(token);
+  if (!decoded) {
     return c.json({ error: 'Invalid token' }, 401);
   }
 
-  // Check if token is blacklisted
-  const isBlacklisted = await AuthService.isTokenBlacklisted(token);
-  if (isBlacklisted) {
-    return c.json({ error: 'Token has been invalidated' }, 401);
+  if (!decoded.email) {
+    return c.json({ error: 'Firebase token missing email claim' }, 400);
   }
 
-  // Attach user payload to context for protected routes to use
-  c.set('user', payload);
+  const user = await UserModel.findOrCreateByFirebaseUid(
+    decoded.uid,
+    decoded.email,
+    decoded.name,
+  );
 
+  c.set('user', user);
   return next();
 };
 
 /**
- * Helper to require authentication
- * Use this in route handlers that need auth
+ * Helper to require authentication in route handlers.
  */
 export const requireAuth = (c: Context) => {
   const user = c.get('user');
@@ -48,3 +44,4 @@ export const requireAuth = (c: Context) => {
   }
   return user;
 };
+

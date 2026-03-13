@@ -1,43 +1,33 @@
 import { MiddlewareHandler } from 'hono';
-import { AuthService } from '../services/AuthService';
+import { FirebaseAdminService } from '../services/FirebaseAdminService';
+import { UserModel } from '../models/User';
 
 export const authMiddleware: MiddlewareHandler = async (c, next) => {
-  let token: string | null = null;
-
-  // Check Authorization header first (Bearer token)
   const authHeader = c.req.header('Authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    token = authHeader.substring(7);
-  }
-
-  // Fall back to cookie if no Bearer token
-  if (!token) {
-    const cookieHeader = c.req.header('Cookie');
-    if (cookieHeader) {
-      const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
-        const [name, value] = cookie.trim().split('=');
-        acc[name] = value;
-        return acc;
-      }, {} as Record<string, string>);
-      token = cookies.accessToken;
-    }
-  }
-
-  if (!token) {
+  if (!authHeader?.startsWith('Bearer ')) {
     return c.json({ error: 'Unauthorized - missing token' }, 401);
   }
 
-  // Check if token is blacklisted
-  const isBlacklisted = await AuthService.isTokenBlacklisted(token);
-  if (isBlacklisted) {
-    return c.json({ error: 'Token has been invalidated' }, 401);
+  const idToken = authHeader.substring(7);
+  if (!idToken) {
+    return c.json({ error: 'Unauthorized - missing token' }, 401);
   }
 
-  const user = await AuthService.getUserFromToken(token);
-
-  if (!user) {
+  const decoded = await FirebaseAdminService.verifyIdToken(idToken);
+  if (!decoded) {
     return c.json({ error: 'Invalid token' }, 401);
   }
+
+  if (!decoded.email) {
+    return c.json({ error: 'Firebase token missing email claim' }, 400);
+  }
+
+  // Find or create the user based on Firebase UID
+  const user = await UserModel.findOrCreateByFirebaseUid(
+    decoded.uid,
+    decoded.email,
+    decoded.name,
+  );
 
   // Attach user to context
   c.set('user', user);

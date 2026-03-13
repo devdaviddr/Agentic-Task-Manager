@@ -30,6 +30,7 @@ export interface User {
   id: number;
   email: string;
   password_hash: string;
+  firebase_uid?: string;
   name?: string;
   role: 'user' | 'admin' | 'superadmin';
   created_at: Date;
@@ -38,7 +39,8 @@ export interface User {
 
 export interface CreateUserRequest {
   email: string;
-  password: string;
+  password?: string;
+  firebase_uid?: string;
   name?: string;
 }
 

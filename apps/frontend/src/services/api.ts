@@ -1,4 +1,6 @@
 import axios from 'axios'
+import { auth } from '../firebase'
+import { getIdToken } from 'firebase/auth'
 
 // Types
 export interface User {
@@ -33,22 +35,18 @@ export interface Tag {
   updated_at: string;
 }
 
-// Global refresh function reference
-let refreshTokenFunction: (() => Promise<void>) | null = null;
-
-export const setRefreshTokenFunction = (fn: () => Promise<void>) => {
-  refreshTokenFunction = fn;
-};
-
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
-  withCredentials: true, // Enable sending cookies with requests
 })
 
-// Request interceptor - no longer needed for auth headers since we use cookies
+// Request interceptor - attach Firebase ID token as Authorization: Bearer header
 api.interceptors.request.use(
-  (config) => {
-    // Cookies are sent automatically by the browser
+  async (config) => {
+    const firebaseUser = auth.currentUser;
+    if (firebaseUser) {
+      const idToken = await getIdToken(firebaseUser);
+      config.headers.Authorization = `Bearer ${idToken}`;
+    }
     return config;
   },
   (error) => {
@@ -56,42 +54,15 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle 401 errors and token refresh
+// Response interceptor - redirect to login on 401
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      // Don't redirect on auth endpoints (me, login, register, refresh) as these are expected to fail when not authenticated
-      if (originalRequest.url?.includes('/auth/')) {
-        return Promise.reject(error);
-      }
-      
-      // If we have a refresh function, try to refresh the token
-      if (refreshTokenFunction) {
-        originalRequest._retry = true;
-        try {
-          await refreshTokenFunction();
-          // Retry the original request
-          return api.request(originalRequest);
-        } catch (refreshError) {
-          console.error('Token refresh failed, redirecting to login:', refreshError);
-          // If refresh fails, redirect to login
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
-          }
-          return Promise.reject(refreshError);
-        }
-      } else {
-        // No refresh function available, redirect to login
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
-        return Promise.reject(error);
+    if (error.response?.status === 401) {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
       }
     }
-
     return Promise.reject(error);
   }
 );

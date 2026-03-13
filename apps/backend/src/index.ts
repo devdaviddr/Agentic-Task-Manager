@@ -13,7 +13,7 @@ import {
   timeout
 } from './middleware';
 import { swaggerUI } from '@hono/swagger-ui';
-import { AuthService } from './services/AuthService';
+
 import { isProduction, getCorsOrigins } from './utils/environment';
 
 const app = new Hono();
@@ -211,14 +211,7 @@ async function startServer() {
     gracefulShutdown('unhandledRejection');
   });
 
-  // Start token cleanup interval (run every hour)
-  setInterval(async () => {
-    try {
-      await AuthService.cleanupExpiredTokens();
-    } catch (error) {
-      console.error('Error during token cleanup:', error);
-    }
-  }, 60 * 60 * 1000); // 1 hour
+  // Token cleanup interval no longer needed - Firebase manages token lifecycle
 
   return server;
 }

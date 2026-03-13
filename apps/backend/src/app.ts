@@ -28,30 +28,6 @@ const corsOrigins = getCorsOrigins();
 
 // Rate limiting - strict limits for auth endpoints (skip in test mode)
 if (!isTestMode) {
-  app.use('/auth/login', rateLimiter({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 5, // Only 5 login attempts per 15 minutes
-    standardHeaders: true,
-    keyGenerator: (c) => {
-      return c.req.header('CF-Connecting-IP') ||
-             c.req.header('X-Forwarded-For') ||
-             c.req.header('X-Real-IP') ||
-             'unknown';
-    },
-  }));
-
-  app.use('/auth/register', rateLimiter({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    limit: 3, // Only 3 registration attempts per hour
-    standardHeaders: true,
-    keyGenerator: (c) => {
-      return c.req.header('CF-Connecting-IP') ||
-             c.req.header('X-Forwarded-For') ||
-             c.req.header('X-Real-IP') ||
-             'unknown';
-    },
-  }));
-
   // Global rate limiting
   app.use('*', rateLimiter({
     windowMs: 15 * 60 * 1000, // 15 minutes
