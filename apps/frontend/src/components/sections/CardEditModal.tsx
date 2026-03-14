@@ -121,13 +121,13 @@ export default function CardEditModal({
   if (!isOpen || !selectedCard) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 shadow-xl">
+    <div className="fixed inset-0 bg-page/70 flex items-center justify-center z-50">
+      <div className="card w-full max-w-lg mx-4 shadow-xl">
         <ModalHeader title="Edit Card" onClose={onClose} />
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-body mb-1">
               Title
             </label>
             <Input
@@ -138,7 +138,7 @@ export default function CardEditModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-body mb-1">
               Description
             </label>
             <Textarea
@@ -150,7 +150,7 @@ export default function CardEditModal({
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-body mb-1">
                 Start Date
               </label>
               <Input
@@ -160,7 +160,7 @@ export default function CardEditModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-body mb-1">
                 End Date
               </label>
               <Input
@@ -173,7 +173,7 @@ export default function CardEditModal({
 
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-body mb-1">
                 Label
               </label>
               <Input
@@ -184,7 +184,7 @@ export default function CardEditModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-body mb-1">
                 Effort (1-10)
               </label>
               <Input
@@ -197,7 +197,7 @@ export default function CardEditModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-body mb-1">
                 Priority
               </label>
               <Select
@@ -213,7 +213,7 @@ export default function CardEditModal({
           </div>
 
           <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-body mb-1">
               Tags
             </label>
             <PillInput
@@ -252,12 +252,12 @@ export default function CardEditModal({
               placeholder="Type to add or create tag..."
             />
             {showTagDropdown && (
-              <div className="absolute z-[60] bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto w-full bottom-full mb-1">
+              <div className="absolute z-[60] bg-panel border border-border rounded-md shadow-lg max-h-40 overflow-y-auto w-full bottom-full mb-1">
                 {filteredTags.length > 0 ? (
                   filteredTags.map(tag => (
                     <div
                       key={tag.id}
-                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer flex items-center"
+                      className="px-3 py-2 hover:bg-panel/10 cursor-pointer flex items-center"
                       onClick={() => {
                         onTagsChange([...editTags, tag])
                         setTagInput('')
@@ -269,14 +269,14 @@ export default function CardEditModal({
                     </div>
                   ))
                 ) : tagInput ? (
-                  <div className="px-3 py-2 text-gray-500">No matching tags</div>
+                  <div className="px-3 py-2 text-muted">No matching tags</div>
                 ) : null}
               </div>
             )}
           </div>
 
           <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-body mb-1">
               Assigned Users
             </label>
             <PillInput
@@ -292,30 +292,30 @@ export default function CardEditModal({
               placeholder="Type to search and assign users..."
             />
             {showUserDropdown && (
-              <div className="absolute z-[60] bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto w-full bottom-full mb-1">
+              <div className="absolute z-[60] bg-panel border border-border rounded-md shadow-lg max-h-40 overflow-y-auto w-full bottom-full mb-1">
                 {filteredUsers.length > 0 ? (
                   filteredUsers.map(user => (
                     <div
                       key={user.id}
-                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                      className="px-3 py-2 hover:bg-panel/10 cursor-pointer"
                       onClick={() => {
                         onUsersChange([...editUsers, user])
                         setUserInput('')
                         setShowUserDropdown(false)
                       }}
                     >
-                      <div className="font-medium">{user.name || 'No name'}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
+                      <div className="font-medium text-body">{user.name || 'No name'}</div>
+                      <div className="text-sm text-muted">{user.email}</div>
                     </div>
                   ))
                 ) : userInput ? (
-                  <div className="px-3 py-2 text-gray-500">No matching users</div>
+                  <div className="px-3 py-2 text-muted">No matching users</div>
                 ) : null}
               </div>
             )}
           </div>
 
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-muted">
             Created: {new Date(selectedCard.created_at).toLocaleDateString()}
           </div>
         </div>

@@ -36,59 +36,59 @@ export default function AccountSettings() {
   return (
     <div className="space-y-6">
       {/* Account Settings */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="card">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Account Information</h3>
+          <h3 className="text-lg leading-6 font-medium text-heading mb-4">Account Information</h3>
           {message && (
-            <div className={`mb-4 p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+            <div className={`mb-4 p-4 rounded-md ${message.type === 'success' ? 'bg-primary/15 text-primary' : 'bg-danger/15 text-danger'}`}>
               {message.text}
             </div>
           )}
           <form onSubmit={handleUpdateProfile} className="space-y-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="name" className="block text-sm font-medium text-body">
                 Full Name
               </label>
               <input
                 type="text"
                 name="name"
                 id="name"
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="input mt-1"
                 placeholder="Enter your full name"
                 defaultValue={user?.name || ''}
               />
             </div>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium text-body">
                 Email
               </label>
               <input
                 type="email"
                 name="email"
                 id="email"
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="input mt-1"
                 placeholder="Enter your email"
                 defaultValue={user?.email || ''}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-body">
                 Account ID
               </label>
-              <div className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500 sm:text-sm">
+              <div className="mt-1 block w-full px-3 py-2 border border-border rounded-md bg-panel text-muted sm:text-sm">
                 {user?.id || 'N/A'}
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-body">
                 Role
               </label>
-              <div className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500 sm:text-sm">
+              <div className="mt-1 block w-full px-3 py-2 border border-border rounded-md bg-panel text-muted sm:text-sm">
                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                  user?.role === 'user' ? 'bg-green-100 text-green-800' :
-                  user?.role === 'admin' ? 'bg-yellow-100 text-yellow-800' :
-                  user?.role === 'superadmin' ? 'bg-red-100 text-red-800' :
-                  'bg-gray-100 text-gray-800'
+                  user?.role === 'user' ? 'bg-secondary/20 text-secondary' :
+                  user?.role === 'admin' ? 'bg-primary/20 text-primary' :
+                  user?.role === 'superadmin' ? 'bg-danger/20 text-danger' :
+                  'bg-panel/10 text-muted'
                 }`}>
                   {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'N/A'}
                 </span>
@@ -98,13 +98,13 @@ export default function AccountSettings() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-primary"
               >
                 {isLoading ? 'Updating...' : 'Update Profile'}
               </button>
               <button
                 onClick={handleLogout}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                className="btn btn-secondary"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

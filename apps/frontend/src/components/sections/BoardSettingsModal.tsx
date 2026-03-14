@@ -184,17 +184,17 @@ export default function BoardSettingsModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-0 w-[600px] max-h-[90vh] overflow-hidden shadow-xl">
+    <div className="fixed inset-0 bg-page/70 flex items-center justify-center z-50">
+      <div className="card p-0 w-[600px] max-h-[90vh] overflow-hidden shadow-xl">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-border">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-lg font-semibold">Board Settings</h2>
+              <h2 className="text-lg font-semibold text-heading">Board Settings</h2>
               {hasChanges && (
                 <div className="flex items-center mt-1">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
-                  <span className="text-sm text-orange-600">Unsaved changes</span>
+                  <div className="w-2 h-2 bg-secondary rounded-full mr-2"></div>
+                  <span className="text-sm text-secondary">Unsaved changes</span>
                 </div>
               )}
             </div>
@@ -218,14 +218,14 @@ export default function BoardSettingsModal({
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
             {/* Tab Navigation */}
-            <div className="border-b border-gray-200 mb-6">
-              <nav className="-mb-px flex space-x-1 bg-gray-100 p-1 rounded-lg">
+            <div className="border-b border-border mb-6">
+              <nav className="-mb-px flex space-x-1 bg-panel p-1 rounded-lg">
                 <button
                   onClick={() => setSelectedTab('general')}
                   className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
                     selectedTab === 'general'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-primary/10 text-primary shadow-sm'
+                      : 'text-muted hover:text-body'
                   }`}
                 >
                   General
@@ -234,8 +234,8 @@ export default function BoardSettingsModal({
                   onClick={() => setSelectedTab('tags')}
                   className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
                     selectedTab === 'tags'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-primary/10 text-primary shadow-sm'
+                      : 'text-muted hover:text-body'
                   }`}
                 >
                   Tags
@@ -244,8 +244,8 @@ export default function BoardSettingsModal({
                   onClick={() => setSelectedTab('danger')}
                   className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
                     selectedTab === 'danger'
-                      ? 'bg-red-50 text-red-700 shadow-sm border border-red-200'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-danger/10 text-danger shadow-sm border border-danger/30'
+                      : 'text-muted hover:text-body'
                   }`}
                 >
                   Danger Zone
@@ -258,7 +258,7 @@ export default function BoardSettingsModal({
               <div className="space-y-6">
                 <div className="grid grid-cols-1 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-900">Board Name</label>
+                    <label className="text-sm font-medium text-body">Board Name</label>
                     <Input
                       type="text"
                       value={editBoardName}
@@ -271,7 +271,7 @@ export default function BoardSettingsModal({
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-900">Background</label>
+                      <label className="text-sm font-medium text-body">Background</label>
                       <Select
                         value={editBackground}
                         onChange={(e) => {
@@ -279,15 +279,15 @@ export default function BoardSettingsModal({
                           trackChange('general', 'background', e.target.value)
                         }}
                       >
-                        <option value="bg-gray-50">Light Gray</option>
-                        <option value="bg-blue-600">Blue</option>
-                        <option value="bg-green-600">Green</option>
-                        <option value="bg-purple-600">Purple</option>
-                        <option value="bg-red-600">Red</option>
+                        <option value="bg-page">Page (default)</option>
+                        <option value="bg-panel">Panel</option>
+                        <option value="bg-primary/10">Primary</option>
+                        <option value="bg-secondary/10">Secondary</option>
+                        <option value="bg-tertiary/10">Tertiary</option>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-900">Column Theme</label>
+                      <label className="text-sm font-medium text-body">Column Theme</label>
                       <Select
                         value={editColumnTheme}
                         onChange={(e) => {
@@ -307,7 +307,7 @@ export default function BoardSettingsModal({
             {selectedTab === 'tags' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-gray-900">Tags</h3>
+                  <h3 className="text-lg font-medium text-heading">Tags</h3>
                   <Button 
                     variant="secondary" 
                     size="sm" 
@@ -339,12 +339,12 @@ export default function BoardSettingsModal({
                       .filter(tag => pendingChanges.tags.toDelete.includes(tag.id))
                       .map(tag => ({ ...tag, status: 'pending_delete' as const } as DisplayTag))
                   ].map((tag: DisplayTag) => (
-                    <div key={tag.id} className={`flex items-center justify-between p-3 rounded-lg border ${
+                        <div key={tag.id} className={`flex items-center justify-between p-3 rounded-card border ${
                       tag.status === 'pending_create' 
-                        ? 'bg-green-50 border-green-200' 
+                        ? 'bg-secondary/15 border-secondary' 
                         : tag.status === 'pending_delete'
-                        ? 'bg-red-50 border-red-200'
-                        : 'bg-gray-50 border-gray-200'
+                        ? 'bg-danger/15 border-danger'
+                        : 'bg-panel border-border'
                     }`}>
                       {editingTagId === tag.id ? (
                         <div className="flex items-center space-x-3 flex-1">
@@ -352,7 +352,7 @@ export default function BoardSettingsModal({
                             type="color"
                             value={editTagColor}
                             onChange={(e) => onEditTagColorChange(e.target.value)}
-                            className="w-6 h-6 rounded border border-gray-300"
+                            className="w-6 h-6 rounded border border-border"
                           />
                           <Input
                             type="text"
@@ -389,7 +389,7 @@ export default function BoardSettingsModal({
                                    type="color"
                                    value={editingPendingTagColor}
                                    onChange={(e) => setEditingPendingTagColor(e.target.value)}
-                                   className="w-6 h-6 rounded border border-gray-300"
+                                    className="w-6 h-6 rounded border border-border"
                                  />
                                  <Input
                                    type="text"
@@ -436,8 +436,8 @@ export default function BoardSettingsModal({
                                </div>
                              ) : (
                                <span 
-                                 className={`font-medium cursor-pointer hover:text-blue-600 ${
-                                   tag.status === 'pending_delete' ? 'line-through text-red-600' : 'text-gray-900'
+                                 className={`font-medium cursor-pointer hover:text-primary ${
+                                   tag.status === 'pending_delete' ? 'line-through text-danger' : 'text-body'
                                  }`}
                                  onClick={() => {
                                    if (tag.status === 'pending_create') {
@@ -451,10 +451,10 @@ export default function BoardSettingsModal({
                                </span>
                              )}
                              {tag.status === 'pending_create' && (
-                               <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">New</span>
+                               <span className="px-2 py-1 text-xs bg-secondary/20 text-secondary rounded-full">New</span>
                              )}
                              {tag.status === 'pending_delete' && (
-                               <span className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">Will be deleted</span>
+                               <span className="px-2 py-1 text-xs bg-danger/20 text-danger rounded-full">Will be deleted</span>
                              )}
                            </div>
                           <div className="flex space-x-2">
@@ -544,14 +544,14 @@ export default function BoardSettingsModal({
             )}
 
             {selectedTab === 'danger' && (
-              <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-6">
+              <div className="bg-panel border border-border rounded-card p-6">
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0">
-                    <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+                    <ExclamationTriangleIcon className="h-6 w-6 text-danger" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-medium text-red-900">Danger Zone</h3>
-                    <p className="mt-1 text-sm text-red-700">
+                    <h3 className="text-lg font-medium text-heading">Danger Zone</h3>
+                    <p className="mt-1 text-sm text-muted">
                       These actions cannot be undone. Please proceed with caution.
                     </p>
                     <div className="mt-4 flex space-x-3">

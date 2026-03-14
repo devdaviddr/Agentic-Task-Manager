@@ -1,19 +1,33 @@
 import { forwardRef } from 'react'
+import type { ReactNode } from 'react'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string
+  prefixNode?: ReactNode
+  suffixNode?: ReactNode
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className = '', error, ...props }, ref) => {
-    const baseClasses = 'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200'
-
-    const classes = `${baseClasses} ${error ? 'border-red-300' : 'border-gray-300'} ${className}`
+  ({ className = '', error, prefixNode, suffixNode, ...props }, ref) => {
+    const baseClasses = 'input'
+    const prefixOffset = prefixNode ? 'pl-10' : ''
+    const suffixOffset = suffixNode ? 'pr-10' : ''
+    const classes = `${baseClasses} ${prefixOffset} ${suffixOffset} ${error ? 'input-error' : ''} ${className}`
 
     return (
-      <div>
+      <div className="relative">
+        {prefixNode && (
+          <div className="absolute left-2 top-1/2 -translate-y-1/2">
+            {prefixNode}
+          </div>
+        )}
         <input ref={ref} className={classes} {...props} />
-        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+        {suffixNode && (
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            {suffixNode}
+          </div>
+        )}
+        {error && <p className="field-error">{error}</p>}
       </div>
     )
   }

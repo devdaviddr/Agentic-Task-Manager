@@ -32,32 +32,28 @@ export default function Login() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-page">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-page flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-600">
-            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="card">
+          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary">
+            <svg className="h-6 w-6 text-page" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            TaskManager
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Sign in with your Google account to continue
-          </p>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-heading">TaskManager</h2>
+          <p className="mt-2 text-center text-sm text-muted">Sign in with your Google account to continue</p>
         </div>
 
         <div className="mt-8 space-y-4">
           {error && (
-            <div className="text-red-600 text-sm text-center bg-red-50 border border-red-200 rounded-md p-3">
+            <div className="text-sm text-center bg-danger/10 border border-danger rounded-md p-3 text-danger">
               {error}
             </div>
           )}
@@ -65,7 +61,7 @@ export default function Login() {
           <button
             onClick={handleGoogleSignIn}
             disabled={signingIn}
-            className="group relative w-full flex justify-center items-center gap-3 py-3 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 shadow-sm transition-colors"
+            className="btn btn-primary w-full"
           >
             {!signingIn && (
               <svg className="h-5 w-5" viewBox="0 0 24 24">

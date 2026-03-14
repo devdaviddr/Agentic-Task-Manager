@@ -81,18 +81,18 @@ export default function UserDetailsModal({ user, isOpen, onClose, onSave, onDele
   if (!isOpen || !user) return null
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+    <div className="fixed inset-0 bg-page/70 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-20 mx-auto p-5 border border-border w-96 shadow-lg rounded-card bg-panel">
         <ModalHeader title="Edit User Details" onClose={onClose} />
         <div className="mt-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">User ID</label>
-            <div className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500 sm:text-sm">
+            <label className="block text-sm font-medium text-body">User ID</label>
+            <div className="mt-1 block w-full px-3 py-2 border border-border rounded-md shadow-sm bg-panel text-muted sm:text-sm">
               {user.id}
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Full Name</label>
+            <label className="block text-sm font-medium text-body">Full Name</label>
             <Input
               type="text"
               value={name}
@@ -101,7 +101,7 @@ export default function UserDetailsModal({ user, isOpen, onClose, onSave, onDele
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <label className="block text-sm font-medium text-body">Email</label>
             <Input
               type="email"
               value={email}
@@ -110,7 +110,7 @@ export default function UserDetailsModal({ user, isOpen, onClose, onSave, onDele
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Role</label>
+            <label className="block text-sm font-medium text-body">Role</label>
             <Select
               value={role}
               onChange={(e) => setRole(e.target.value as 'user' | 'admin' | 'superadmin')}

@@ -8,6 +8,7 @@ import Layout from './components/Layout'
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Board = lazy(() => import('./pages/Board'))
+const Ux = lazy(() => import('./pages/Ux'))
 const SettingsLayout = lazy(() => import('./pages/Settings'))
 const AccountSettings = lazy(() => import('./pages/AccountSettings'))
 const SystemUsers = lazy(() => import('./pages/SystemUsers'))
@@ -15,7 +16,7 @@ const SystemHealth = lazy(() => import('./pages/SystemHealth'))
 
 const PageFallback = () => (
   <div className="flex items-center justify-center h-screen">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
   </div>
 )
 
@@ -23,6 +24,7 @@ export const AppRoutes = () => (
   <AuthProvider>
     <Suspense fallback={<PageFallback />}>
       <Routes>
+        <Route path="/ux" element={<Ux />} />
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/app" element={

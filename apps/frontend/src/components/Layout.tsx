@@ -3,10 +3,10 @@ import Sidebar from './Sidebar'
 
 export default function Layout() {
   return (
-    <div className="min-h-screen">
-      <nav className="bg-white border-b border-gray-200 h-16">
+    <div className="min-h-screen bg-page text-body">
+      <nav className="bg-panel border-b border-border h-16">
         <div className="h-full px-4 sm:px-6 lg:px-8 flex items-center">
-          <Link to="/app" className="text-xl font-bold text-gray-900">
+          <Link to="/app" className="text-xl font-bold text-heading">
             Task Manager
           </Link>
         </div>
