@@ -8,6 +8,7 @@ import Layout from './components/Layout'
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Board = lazy(() => import('./pages/Board'))
+const Ux = lazy(() => import('./pages/Ux'))
 const SettingsLayout = lazy(() => import('./pages/Settings'))
 const AccountSettings = lazy(() => import('./pages/AccountSettings'))
 const SystemUsers = lazy(() => import('./pages/SystemUsers'))
@@ -23,6 +24,7 @@ export const AppRoutes = () => (
   <AuthProvider>
     <Suspense fallback={<PageFallback />}>
       <Routes>
+        <Route path="/ux" element={<Ux />} />
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/app" element={

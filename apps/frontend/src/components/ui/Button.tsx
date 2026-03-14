@@ -18,11 +18,18 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       icon: 'btn-icon',
     }
 
-    const sizeClasses = {
-      sm: 'px-3 py-1.5 text-sm',
-      md: 'px-4 py-2 text-sm',
-      lg: 'px-6 py-3 text-base'
-    }
+    const sizeClasses =
+      variant === 'icon'
+        ? {
+            sm: 'w-8 h-8',
+            md: 'w-10 h-10',
+            lg: 'w-12 h-12'
+          }
+        : {
+            sm: 'px-3 py-1.5 text-sm',
+            md: 'px-4 py-2 text-sm',
+            lg: 'px-6 py-3 text-base'
+          }
 
     const classes = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`
 

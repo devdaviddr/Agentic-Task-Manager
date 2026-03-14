@@ -85,6 +85,17 @@ export default function Sidebar() {
                 {!isCollapsed && <span className="ml-3">Settings</span>}
               </Link>
             </li>
+            <li>
+              <Link
+                to="/ux"
+                className="flex items-center p-2 rounded-md hover:bg-panel/10 transition-colors"
+              >
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                {!isCollapsed && <span className="ml-3">UX / Design</span>}
+              </Link>
+            </li>
          </ul>
       </nav>
 
