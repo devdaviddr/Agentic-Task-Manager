@@ -173,7 +173,7 @@ export default function Dashboard() {
       <PageLayout>
         <PageHeader title="Dashboard" />
         <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
       </PageLayout>
     )
@@ -184,7 +184,7 @@ export default function Dashboard() {
       <PageLayout>
         <PageHeader title="Dashboard" />
         <div className="text-center py-12">
-          <p className="text-red-600">Failed to load boards. Please try again.</p>
+          <p className="text-danger">Failed to load boards. Please try again.</p>
         </div>
       </PageLayout>
     )
@@ -199,10 +199,10 @@ export default function Dashboard() {
 
         <div className="px-6 pb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Your Boards</h2>
+            <h2 className="text-lg font-semibold text-heading mb-4 sm:mb-0">Your Boards</h2>
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative">
-                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input
@@ -210,23 +210,23 @@ export default function Dashboard() {
                   placeholder="Search boards..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-64"
+                  className="input pl-10 w-full sm:w-64"
                 />
               </div>
                <select
                  value={sortBy}
                  onChange={(e) => setSortBy(e.target.value as 'name' | 'created_at')}
-                 className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                 className="select"
                >
                  <option value="created_at">Sort by Date</option>
                  <option value="name">Sort by Name</option>
                </select>
                <button
                  onClick={() => setShowArchived(!showArchived)}
-                 className={`inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                 className={`btn btn-secondary ${
                    showArchived
-                     ? 'text-blue-700 bg-blue-50 border-blue-300 hover:bg-blue-100'
-                     : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
+                     ? 'text-primary bg-primary/10 border-primary'
+                     : 'text-muted bg-panel border-border'
                  }`}
                >
                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,7 +236,7 @@ export default function Dashboard() {
                </button>
               <button
                 onClick={handleCreateBoard}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="btn btn-primary"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -249,12 +249,9 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {filteredAndSortedBoards.map((board, index) => {
               const gradients = [
-                'from-blue-500 to-purple-600',
-                'from-green-500 to-teal-600',
-                'from-orange-500 to-red-600',
-                'from-pink-500 to-rose-600',
-                'from-indigo-500 to-blue-600',
-                'from-cyan-500 to-blue-600'
+                'from-primary/30 to-tertiary/30',
+                'from-secondary/30 to-primary/30',
+                'from-tertiary/30 to-secondary/30',
               ]
               const gradient = gradients[index % gradients.length]
 
@@ -262,66 +259,66 @@ export default function Dashboard() {
                 <div
                   key={board.id}
                   onClick={() => handleBoardClick(board.id)}
-                  className={`relative bg-gradient-to-br ${gradient} rounded-xl shadow-lg border border-white/20 p-6 hover:shadow-2xl hover:scale-105 transition-all duration-300 cursor-pointer group overflow-hidden ${board.archived ? 'opacity-60' : ''}`}
+                  className={`relative bg-gradient-to-br ${gradient} rounded-card shadow-lg border border-border p-6 hover:shadow-2xl hover:scale-105 transition-all duration-300 cursor-pointer group overflow-hidden ${board.archived ? 'opacity-60' : ''}`}
                 >
-                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors duration-300"></div>
+                  <div className="absolute inset-0 bg-panel/50 group-hover:bg-panel/70 transition-colors duration-300"></div>
                   <div className="relative z-10">
-                     <div className="flex items-start justify-between mb-4">
-                       <div className="flex-1">
-                         <h3 className="text-xl font-bold text-white mb-2 line-clamp-1">{board.name}</h3>
-                         {board.description && (
-                           <p className="text-white/80 text-sm mb-3 line-clamp-2">{board.description}</p>
-                         )}
-                       </div>
-                       <div className="flex items-center space-x-2">
-                         {board.archived && (
-                           <span className="px-2 py-1 text-xs font-medium text-white bg-black/30 rounded-full">
-                             Archived
-                           </span>
-                         )}
-                         <button
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-heading mb-2 line-clamp-1">{board.name}</h3>
+                        {board.description && (
+                          <p className="text-body/80 text-sm mb-3 line-clamp-2">{board.description}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {board.archived && (
+                          <span className="px-2 py-1 text-xs font-medium text-body bg-page/30 rounded-full">
+                            Archived
+                          </span>
+                        )}
+                        <button
                           onClick={(e) => {
                             e.stopPropagation()
                             setMenuOpen(menuOpen === board.id ? null : board.id)
                           }}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-white/20 transition-all duration-200"
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-panel/20 transition-all duration-200"
                         >
-                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                           </svg>
                         </button>
                         <div className="opacity-80 group-hover:opacity-100 transition-opacity duration-300">
-                          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-8 h-8 text-primary/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                           </svg>
                         </div>
                       </div>
                     </div>
 
-                      {menuOpen === board.id && (
-                        <div className="absolute top-12 right-2 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-32">
+                    {menuOpen === board.id && (
+                        <div className="absolute top-12 right-2 bg-panel rounded-lg shadow-lg border border-border py-1 z-20 min-w-32">
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
                               handleEditBoard(board)
                             }}
                             disabled={updateBoardMutation.isPending}
-                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center disabled:opacity-50"
+                            className="w-full text-left px-3 py-2 text-sm text-body hover:bg-panel/10 flex items-center disabled:opacity-50"
                           >
-                            <PencilIcon className="w-4 h-4 mr-2" />
+                            <PencilIcon className="w-4 h-4 mr-2 text-primary" />
                             {updateBoardMutation.isPending ? 'Editing...' : 'Edit'}
                           </button>
                         </div>
                       )}
 
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center text-white/70 text-xs">
+                      <div className="flex items-center text-muted/70 text-xs">
                         <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         {new Date(board.created_at).toLocaleDateString()}
                       </div>
-                      <div className="text-white/70 text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="text-muted/70 text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         Click to open →
                       </div>
                     </div>
@@ -333,30 +330,30 @@ export default function Dashboard() {
 
           {filteredAndSortedBoards.length === 0 && boards.length > 0 && (
             <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No boards found</h3>
-              <p className="mt-1 text-sm text-gray-500">Try adjusting your search or create a new board.</p>
-            </div>
+                <svg className="mx-auto h-12 w-12 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-heading">No boards found</h3>
+                <p className="mt-1 text-sm text-muted">Try adjusting your search or create a new board.</p>
+              </div>
           )}
 
           {boards.length === 0 && (
             <div className="text-center py-16">
-              <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-6">
-                <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mx-auto w-24 h-24 bg-gradient-to-br from-primary/30 to-tertiary/30 rounded-full flex items-center justify-center mb-6">
+                <svg className="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Welcome to TaskManager!</h3>
-              <p className="text-gray-600 mb-8 max-w-md mx-auto">
+              <h3 className="text-xl font-semibold text-heading mb-2">Welcome to TaskManager!</h3>
+              <p className="text-muted mb-8 max-w-md mx-auto">
                 Create your first kanban board to start organizing your tasks and projects.
                 Break down work into manageable columns and track progress visually.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button
                   onClick={handleCreateBoard}
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-lg hover:shadow-xl transition-all duration-200"
+                  className="btn btn-primary px-6 py-3"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -365,7 +362,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   onClick={() => window.open('https://github.com/sst/opencode', '_blank')}
-                  className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                  className="btn btn-secondary px-6 py-3"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -380,13 +377,13 @@ export default function Dashboard() {
 
       {/* Create Board Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 shadow-xl">
+        <div className="fixed inset-0 bg-page/70 flex items-center justify-center z-50">
+          <div className="card w-full max-w-md mx-4 shadow-xl">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Create New Board</h2>
+              <h2 className="text-lg font-semibold text-heading">Create New Board</h2>
               <button
                 onClick={handleCloseModal}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-muted hover:text-body"
               >
                 ✕
               </button>
@@ -394,7 +391,7 @@ export default function Dashboard() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-body mb-1">
                   Board Name *
                 </label>
                 <input
@@ -402,13 +399,13 @@ export default function Dashboard() {
                   value={newBoardName}
                   onChange={(e) => setNewBoardName(e.target.value)}
                   placeholder="Enter board name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="input"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateBoardSubmit()}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-body mb-1">
                   Description (Optional)
                 </label>
                 <textarea
@@ -416,7 +413,7 @@ export default function Dashboard() {
                   onChange={(e) => setNewBoardDescription(e.target.value)}
                   placeholder="Enter board description"
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="textarea"
                 />
               </div>
             </div>
@@ -424,14 +421,14 @@ export default function Dashboard() {
             <div className="flex justify-end items-center mt-6 space-x-3">
               <button
                 onClick={handleCloseModal}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                className="btn btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateBoardSubmit}
                 disabled={createBoardMutation.isPending || !newBoardName.trim()}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-primary"
               >
                 {createBoardMutation.isPending ? 'Creating...' : 'Create Board'}
               </button>

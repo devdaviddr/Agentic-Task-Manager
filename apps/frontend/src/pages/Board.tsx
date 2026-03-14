@@ -108,7 +108,7 @@ export default function BoardPage() {
       <PageLayout>
         <PageHeader title="Loading..." />
         <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </PageLayout>
     )
@@ -119,7 +119,7 @@ export default function BoardPage() {
       <PageLayout>
         <PageHeader title="Error" />
         <div className="text-center py-12">
-          <p className="text-red-600">Failed to load board. Please try again.</p>
+          <p className="text-danger">Failed to load board. Please try again.</p>
         </div>
       </PageLayout>
     )
@@ -266,7 +266,7 @@ export default function BoardPage() {
 
   const handleOpenSettings = () => {
     boardState.setEditBoardName(board!.name)
-    boardState.setEditBackground(board!.background || 'bg-gray-50')
+    boardState.setEditBackground(board!.background || 'bg-panel')
     boardState.setEditColumnTheme(board!.column_theme || 'light')
     boardState.setIsSettingsModalOpen(true)
   }
@@ -376,14 +376,12 @@ export default function BoardPage() {
     })
   }
 
-  const isDarkBackground = board.background && ['bg-blue-600', 'bg-green-600', 'bg-purple-600', 'bg-red-600'].includes(board.background)
-
   return (
-    <PageLayout background={board.background || 'bg-gray-50'}>
+    <PageLayout background="bg-page">
       <div className="w-full h-full flex flex-col">
         <div className="px-6 py-4">
-          <PageHeader title={board.name} background={board.background}>
-            <IconButton icon={CogIcon} onClick={handleOpenSettings} className={isDarkBackground ? 'text-white' : 'text-black'} />
+          <PageHeader title={board.name}>
+            <IconButton icon={CogIcon} onClick={handleOpenSettings} className="text-primary" />
           </PageHeader>
         </div>
 
@@ -414,7 +412,7 @@ export default function BoardPage() {
                 <div className="flex-shrink-0 w-80">
                   <button
                     onClick={handleOpenAddColumn}
-                    className="w-full h-12 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center text-gray-600 hover:text-gray-800 transition-colors"
+                    className="btn btn-secondary w-full h-12 justify-center"
                   >
                     <PlusIcon className="w-5 h-5 mr-2" />
                     Add Column

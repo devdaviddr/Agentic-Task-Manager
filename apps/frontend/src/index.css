@@ -1,3 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html, body {
+    height: 100%;
+    background-color: theme('colors.page');
+    color: theme('colors.body');
+    font-family: theme('fontFamily.sans');
+  }
+
+  *::selection {
+    background-color: theme('colors.primary');
+    color: theme('colors.page');
+  }
+
+  /* Optional custom scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-panel border border-border rounded-card p-6 shadow-sm;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-page disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-page border border-transparent hover:bg-primary/90;
+  }
+
+  .btn-secondary {
+    @apply bg-transparent text-secondary border border-border hover:bg-panel/10;
+  }
+
+  .btn-inverted {
+    @apply bg-panel/10 text-page border border-border hover:bg-panel/20;
+  }
+
+  .btn-danger {
+    @apply bg-danger text-page border border-transparent hover:bg-danger/90;
+  }
+
+  .btn-icon {
+    @apply p-2 rounded-pill bg-transparent text-muted hover:bg-panel/10 hover:text-primary;
+  }
+
+  .input,
+  .textarea,
+  .select {
+    @apply w-full px-4 py-2 border border-border rounded-md bg-panel text-body placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-page transition-all duration-200;
+  }
+
+  .input-error,
+  .select-error,
+  .textarea-error {
+    @apply border-danger;
+  }
+
+  .input-error + .field-error,
+  .select-error + .field-error,
+  .textarea-error + .field-error {
+    @apply mt-1 text-sm text-danger;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-panel/10 text-body;
+  }
+
+  .badge-primary {
+    @apply bg-primary/15 text-primary;
+  }
+
+  .badge-secondary {
+    @apply bg-secondary/15 text-secondary;
+  }
+
+  .badge-tertiary {
+    @apply bg-tertiary/15 text-tertiary;
+  }
+
+  .badge-danger {
+    @apply bg-danger/15 text-danger;
+  }
+}

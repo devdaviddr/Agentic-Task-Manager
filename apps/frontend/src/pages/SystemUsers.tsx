@@ -61,10 +61,10 @@ export default function SystemUsers() {
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'superadmin': return 'bg-red-100 text-red-800'
-      case 'admin': return 'bg-yellow-100 text-yellow-800'
-      case 'user': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'superadmin': return 'bg-danger/20 text-danger'
+      case 'admin': return 'bg-primary/20 text-primary'
+      case 'user': return 'bg-secondary/20 text-secondary'
+      default: return 'bg-panel/10 text-muted'
     }
   }
 
@@ -72,8 +72,8 @@ export default function SystemUsers() {
     return (
       <div className="flex justify-center py-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-          <p className="text-gray-600">You need administrator privileges to view this page.</p>
+          <h2 className="text-2xl font-bold text-heading mb-4">Access Denied</h2>
+          <p className="text-muted">You need administrator privileges to view this page.</p>
         </div>
       </div>
     )
@@ -82,48 +82,48 @@ export default function SystemUsers() {
   if (loading) {
     return (
       <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="bg-white shadow rounded-lg">
+      <div className="card">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">System Users</h3>
+          <h3 className="text-lg leading-6 font-medium text-heading mb-4">System Users</h3>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-panel">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
                     ID
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
                     User
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
                     Role
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
                     Created
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-panel divide-y divide-border">
                 {users.map((user) => (
-                  <tr key={user.id} className="cursor-pointer hover:bg-gray-50" onClick={() => handleUserClick(user)}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <tr key={user.id} className="cursor-pointer hover:bg-panel/10" onClick={() => handleUserClick(user)}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                       {user.id}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-body">
                             {user.name || 'No name'}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-muted">
                             {user.email}
                           </div>
                         </div>
@@ -134,7 +134,7 @@ export default function SystemUsers() {
                         {user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                   </tr>

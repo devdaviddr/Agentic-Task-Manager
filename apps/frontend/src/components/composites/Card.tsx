@@ -69,8 +69,8 @@ function getDueInfo(end_date?: string): { text: string; isOverdue: boolean } | n
 }
 
 export default function Card({ item, index, columnTheme, onClick }: CardProps) {
-  const columnClasses = columnTheme === 'dark' ? 'bg-black/70' : 'bg-white'
-  const textClasses = columnTheme === 'dark' ? 'text-white' : 'text-black'
+  const textClasses = 'text-body'
+  const themeClasses = columnTheme === 'light' ? 'bg-panel/80' : 'bg-panel'
   const dueInfo = getDueInfo(item.end_date)
 
   return (
@@ -80,10 +80,10 @@ export default function Card({ item, index, columnTheme, onClick }: CardProps) {
           ref={itemProvided.innerRef}
           {...itemProvided.draggableProps}
           {...itemProvided.dragHandleProps}
-          className={`${columnClasses} p-2 rounded-lg border border-gray-200 shadow-sm cursor-move hover:shadow-md transition-all duration-150 relative ${
+          className={`${themeClasses} p-2 rounded-card border border-border shadow-sm cursor-move transition-all duration-150 relative ${
             itemSnapshot.isDragging
-              ? 'shadow-xl opacity-95 border-blue-400 ring-2 ring-blue-400/50'
-              : 'hover:border-gray-300 hover:shadow-md'
+              ? 'shadow-xl opacity-95 border-primary ring-2 ring-primary/50'
+              : 'hover:border-primary hover:shadow-md'
           }`}
           onClick={onClick}
         >
@@ -98,23 +98,23 @@ export default function Card({ item, index, columnTheme, onClick }: CardProps) {
             <div className="flex items-center justify-between">
               <div className="flex flex-wrap gap-1">
                 {item.label && (
-                  <span className="inline-block bg-blue-500/20 text-blue-600 text-xs px-1.5 py-0.5 rounded font-medium">
+                  <span className="inline-block bg-secondary/20 text-secondary text-xs px-1.5 py-0.5 rounded font-medium">
                     {item.label}
                   </span>
                 )}
                 {item.priority && (
-                  <span className="inline-block bg-red-500/20 text-red-700 text-xs px-1.5 py-0.5 rounded font-medium">
+                  <span className="inline-block bg-danger/20 text-danger text-xs px-1.5 py-0.5 rounded font-medium">
                     {getPrioritySymbol(item.priority)}
                   </span>
                 )}
                 {typeof item.effort === 'number' && item.effort > 0 && (
-                  <span className="inline-block bg-green-500/20 text-green-700 text-xs px-1.5 py-0.5 rounded font-medium">
+                  <span className="inline-block bg-primary/20 text-primary text-xs px-1.5 py-0.5 rounded font-medium">
                     ⚡{item.effort}
                   </span>
                 )}
                 {dueInfo && (
                   <span className={`inline-block text-xs px-1.5 py-0.5 rounded font-medium ${
-                    dueInfo.isOverdue ? 'bg-red-500/20 text-red-700' : 'bg-orange-500/20 text-orange-700'
+                    dueInfo.isOverdue ? 'bg-danger/20 text-danger' : 'bg-primary/20 text-primary'
                   }`}>
                     {dueInfo.text}
                   </span>
@@ -122,7 +122,7 @@ export default function Card({ item, index, columnTheme, onClick }: CardProps) {
                 {item.tags && item.tags.map(tag => (
                   <span
                     key={tag.id}
-                    className="inline-block text-xs px-1.5 py-0.5 rounded font-medium text-white"
+                    className="inline-block text-xs px-1.5 py-0.5 rounded font-medium text-page"
                     style={{ backgroundColor: tag.color }}
                   >
                     {tag.name}
@@ -136,14 +136,14 @@ export default function Card({ item, index, columnTheme, onClick }: CardProps) {
                   {item.assigned_users.slice(0, 3).map(user => (
                     <div
                       key={user.id}
-                      className="w-6 h-6 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-xs font-medium text-white"
+                      className="w-6 h-6 rounded-full bg-primary border-2 border-border flex items-center justify-center text-xs font-medium text-page"
                       title={user.name || user.email}
                     >
                       {(user.name || user.email).charAt(0).toUpperCase()}
                     </div>
                   ))}
                   {item.assigned_users.length > 3 && (
-                    <div className="w-6 h-6 rounded-full bg-gray-400 border-2 border-white flex items-center justify-center text-xs font-medium text-white">
+                    <div className="w-6 h-6 rounded-full bg-muted border-2 border-border flex items-center justify-center text-xs font-medium text-page">
                       +{item.assigned_users.length - 3}
                     </div>
                   )}

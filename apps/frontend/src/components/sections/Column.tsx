@@ -76,11 +76,7 @@ export default function Column({
   updatePending,
   deletePending
 }: ColumnProps) {
-  const columnClasses = columnTheme === 'dark' ? 'bg-black/60' : 'bg-white'
-  const inputClasses = columnTheme === 'dark'
-    ? 'bg-black/40 border-white/30 text-white placeholder-white/50 focus:bg-black/60 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/50 hover:bg-black/50 hover:border-white/40'
-    : 'bg-gray-50 border-gray-300 text-black placeholder-gray-500 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-500/50 hover:bg-gray-100 hover:border-gray-400'
-
+  const columnClasses = 'bg-panel'
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       onCreateItem()
@@ -94,8 +90,8 @@ export default function Column({
           <div
             ref={droppableProvided.innerRef}
             {...droppableProvided.droppableProps}
-            className={`rounded-lg p-2 w-80 transition-all duration-200 border border-gray-200 ${
-              snapshot.isDraggingOver ? 'bg-blue-50 border-blue-400' : columnClasses
+            className={`rounded-card p-2 w-80 transition-all duration-200 border border-border ${
+              snapshot.isDraggingOver ? 'bg-primary/10 border-primary' : columnClasses
             }`}
           >
             <ColumnHeader
@@ -133,7 +129,7 @@ export default function Column({
                 value={newItemTitle}
                 onChange={(e) => onNewItemChange(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className={`w-full px-3 py-2 border rounded-lg text-sm shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${inputClasses}`}
+                className="w-full text-sm"
               />
             </div>
           </div>

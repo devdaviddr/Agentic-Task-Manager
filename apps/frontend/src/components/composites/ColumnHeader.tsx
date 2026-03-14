@@ -62,13 +62,13 @@ export default function ColumnHeader({
   updatePending,
   deletePending
 }: ColumnHeaderProps) {
-  const dropdownBg = columnTheme === 'dark' ? 'bg-gray-800' : 'bg-white'
-  const dropdownBorder = columnTheme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-  const buttonText = columnTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-  const buttonHover = columnTheme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-  const deleteText = columnTheme === 'dark' ? 'text-red-400' : 'text-red-600'
-  const deleteHover = columnTheme === 'dark' ? 'hover:bg-red-900/20' : 'hover:bg-red-50'
-  const textClasses = columnTheme === 'dark' ? 'text-white' : 'text-black'
+  const dropdownBg = 'bg-panel'
+  const dropdownBorder = 'border-border'
+  const buttonText = 'text-body'
+  const buttonHover = 'hover:bg-panel/10'
+  const deleteText = 'text-danger'
+  const deleteHover = 'hover:bg-danger/10'
+  const textClasses = 'text-heading'
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
   const handleDropdownToggle = () => setDropdownOpen(!dropdownOpen)
@@ -79,7 +79,7 @@ export default function ColumnHeader({
   }
 
   return (
-    <div className="flex items-center justify-between mb-2 relative">
+    <div className="flex items-center justify-between mb-2 relative" data-column-theme={columnTheme}>
       <div className="flex items-center">
         <h3 className={`font-semibold ${textClasses}`}>{column.name}</h3>
       </div>
@@ -88,7 +88,7 @@ export default function ColumnHeader({
           <IconButton
             icon={EllipsisHorizontalIcon}
             onClick={handleDropdownToggle}
-            className={`p-1 rounded hover:bg-white/10 transition-colors ${textClasses}/60 hover:${textClasses}`}
+            className={`p-1 rounded hover:bg-panel/10 transition-colors ${textClasses}/60 hover:${textClasses}`}
           />
           {dropdownOpen && (
             <div className={`absolute right-0 mt-1 w-48 ${dropdownBg} border ${dropdownBorder} rounded-md shadow-lg z-10`}>

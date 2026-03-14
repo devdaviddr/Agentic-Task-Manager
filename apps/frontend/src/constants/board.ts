@@ -1,9 +1,9 @@
 export const BACKGROUND_OPTIONS = [
-  { value: 'bg-gray-50', label: 'Light Gray' },
-  { value: 'bg-blue-600', label: 'Blue' },
-  { value: 'bg-green-600', label: 'Green' },
-  { value: 'bg-purple-600', label: 'Purple' },
-  { value: 'bg-red-600', label: 'Red' }
+  { value: 'bg-page', label: 'Page' },
+  { value: 'bg-panel', label: 'Panel' },
+  { value: 'bg-primary/10', label: 'Primary' },
+  { value: 'bg-secondary/10', label: 'Secondary' },
+  { value: 'bg-tertiary/10', label: 'Tertiary' }
 ]
 
 export const THEME_OPTIONS = [
